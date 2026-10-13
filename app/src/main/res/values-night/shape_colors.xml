@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="shape_background">#12151B</color>
+    <color name="shape_surface">#1C2028</color>
+    <color name="shape_primary">#E9EDF5</color>
+    <color name="shape_secondary">#ADB6C7</color>
+    <color name="shape_accent">#A8C7FF</color>
+    <color name="shape_accent_text">#A8C7FF</color>
+    <color name="shape_on_accent">#10254B</color>
+    <color name="shape_accent_surface">#26354D</color>
+    <color name="shape_outline">#3D4655</color>
+    <color name="shape_error_surface">#3B2721</color>
+    <color name="shape_error_text">#FFB595</color>
+</resources>

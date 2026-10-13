@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="shape_background">@color/background_light</color>
+    <color name="shape_surface">@color/surface_light</color>
+    <color name="shape_primary">@color/text_primary</color>
+    <color name="shape_secondary">#626C7C</color>
+    <color name="shape_accent">@color/primary</color>
+    <color name="shape_accent_text">@color/primary_variant</color>
+    <color name="shape_on_accent">#FFFFFF</color>
+    <color name="shape_accent_surface">#EAF1FF</color>
+    <color name="shape_outline">@color/card_stroke</color>
+    <color name="shape_error_surface">#FFF0EA</color>
+    <color name="shape_error_text">#963C19</color>
+</resources>
