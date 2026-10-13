@@ -1,0 +1,7 @@
+Source: https://github.com/lvyww/tiger-code
+Revision: 3e1bff2f757806152ef5b701c709c24f54cf800f
+Source file: tables/tiger.txt
+Source SHA256: 36e16b76d66f4f5be2341396e8eb400e44244d528823a5eabb4e90c9c5c1de24
+License: CC0-1.0 (see LICENSE-tiger.txt)
+Entries: 171074
+Conversion: retain [Data] rows, deduplicate exact (code, text) pairs, preserve order, text TAB code, UTF-8, gzip mtime=0.

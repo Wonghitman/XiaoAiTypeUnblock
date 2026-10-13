@@ -13,6 +13,7 @@ import io.mo.xatype.hooks.ClipboardSensitiveHook
 import io.mo.xatype.hooks.CloudBlacklistHook
 import io.mo.xatype.hooks.HyperOsVersionHook
 import io.mo.xatype.hooks.InputDiagnosticsHook
+import io.mo.xatype.hooks.ShapeInputHook
 import io.mo.xatype.hooks.KeyboardStyleHook
 import io.mo.xatype.hooks.KeyboardHeightUnblockHook
 import io.mo.xatype.hooks.KeyboardBottomSpacingHook
@@ -90,6 +91,12 @@ class XiaoAiTypeModule : XposedModule() {
         // com.miui.phrase owns persistence. The remaining hooks target only the
         // Xiaomi input method process.
         if (param.packageName == PHRASE_PACKAGE) return
+
+        try {
+            ShapeInputHook.install(this, classLoader)
+        } catch (t: Throwable) {
+            XposedUtils.logError(this, "Shape input unavailable for this host ABI", t)
+        }
 
         if (BuildConfig.INPUT_DIAGNOSTICS) {
             try {

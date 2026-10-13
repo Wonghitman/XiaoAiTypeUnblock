@@ -65,6 +65,7 @@ jobs:
           BUILD_NUMBER: ${{ github.run_number }}
         run: |
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs app/build/outputs/apk/release/app-release.apk
+          python3 scripts/verify-shape-apk.py app/build/outputs/apk/release/app-release.apk
           python3 - <<'PY'
           import json
           import os

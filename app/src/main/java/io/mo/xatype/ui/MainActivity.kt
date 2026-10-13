@@ -53,6 +53,9 @@ class MainActivity : AppCompatActivity() {
         initSwitches()
         initTabs(savedInstanceState)
         initButtons()
+        findViewById<Button>(R.id.btnShapeInput).setOnClickListener {
+            startActivity(android.content.Intent(this, ShapeInputActivity::class.java))
+        }
         findViewById<Button>(R.id.btnInputDiagnostics).apply {
             visibility = if (io.mo.xatype.BuildConfig.INPUT_DIAGNOSTICS) View.VISIBLE else View.GONE
             setOnClickListener {

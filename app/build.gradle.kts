@@ -53,6 +53,12 @@ android {
         debug {
             isMinifyEnabled = false
         }
+        create("shapePrototype") {
+            initWith(getByName("release"))
+            signingConfig = getByName("release").signingConfig ?: signingConfigs.getByName("debug")
+            versionNameSuffix = "-shape-prototype1"
+            matchingFallbacks += "release"
+        }
         create("diagnostic") {
             initWith(getByName("release"))
             signingConfig = getByName("release").signingConfig ?: signingConfigs.getByName("debug")

@@ -11,6 +11,10 @@
         android:name="${applicationId}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
         tools:node="remove" />
 
+    <queries>
+        <package android:name="com.xiaomi.type" />
+    </queries>
+
     <application
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher"
@@ -48,6 +52,8 @@
             </intent-filter>
         </activity>
 
+        <activity android:name=".ui.ShapeInputActivity" android:exported="false" />
+
         <!-- The launcher icon; the "hide launcher icon" switch disables it. -->
         <activity-alias
             android:name=".ui.LauncherAlias"
@@ -64,6 +70,12 @@
         <provider
             android:name=".provider.LogContentProvider"
             android:authorities="io.mo.xatype.logprovider"
+            android:exported="true" />
+
+        <provider
+            android:name=".provider.ShapeContentProvider"
+            android:authorities="io.mo.xatype.shapeprovider"
+            android:directBootAware="true"
             android:exported="true" />
 
     </application>
