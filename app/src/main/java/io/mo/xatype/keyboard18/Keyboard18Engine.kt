@@ -68,35 +68,54 @@ class Keyboard18Engine(private val dictionary: Keyboard18Dictionary,
         return snapshot(text.isNotEmpty(), commits.toString().ifEmpty { null })
     }
 
-    private data class Path(val text: String, val spelling: String, val score: Double)
+    private data class Word(val end: Int, val entry: Pinyin18Entry, val abbreviated: Boolean)
+    private data class Path(val text: String, val spelling: String, val score: Double,
+        val segments: Int = 0, val minimumWeight: Int = Int.MAX_VALUE)
+    private fun words(start: Int) = dictionary.words(raw, start).map { (end, entry) -> Word(end, entry, false) } +
+        dictionary.abbreviations(raw, start).map { (end, entry) -> Word(end, entry, true) }
+    private fun score(word: Word) = word.entry.score - dictionary.maxScore + learning(word.entry.text) -
+        if (word.abbreviated) INITIAL_PENALTY * word.entry.syllableCount else 0.0
     private fun refresh() {
         if (raw.isEmpty()) { candidates = emptyList(); return }
         val paths = Array(raw.length + 1) { mutableListOf<Path>() }
         paths[0].add(Path("", "", 0.0))
-        val direct = dictionary.words(raw, 0)
+        val direct = words(0)
         for (start in raw.indices) {
             if (paths[start].isEmpty()) continue
             if (raw[start] == '\'') {
                 paths[start + 1].addAll(paths[start]); prune(paths[start + 1]); continue
             }
-            val words = if (start == 0) direct else dictionary.words(raw, start)
-            for ((end, entry) in words) {
-                val score = entry.score - dictionary.maxScore - WORD_PENALTY + learning(entry.text)
-                paths[start].forEach { path -> paths[end].add(Path(path.text + entry.text,
-                    (path.spelling + " " + entry.spelling).trim(), path.score + score)) }
+            val matches = if (start == 0) direct else words(start)
+            for (word in matches) {
+                val end = word.end
+                val entry = word.entry
+                val wordScore = score(word) - WORD_PENALTY
+                paths[start].forEach { path ->
+                    val repeated = path.segments > 0 && entry.text.length == 1 && path.text.endsWith(entry.text)
+                    paths[end].add(Path(path.text + entry.text,
+                        (path.spelling + " " + entry.spelling).trim(),
+                        path.score + wordScore - if (repeated) REPETITION_PENALTY else 0.0,
+                        path.segments + 1, minOf(path.minimumWeight, entry.weight)))
+                }
                 prune(paths[end])
             }
         }
-        val whole = paths[raw.length].map { Pinyin18Candidate(it.text, it.spelling, raw.length, it.score) }
-        val prefix = direct.map { (end, entry) -> Pinyin18Candidate(entry.text, entry.spelling, end,
-            entry.score - dictionary.maxScore + learning(entry.text)) }
+        // Rare corpus entries remain individually selectable, but are not used to fabricate
+        // low-frequency multiword sentences such as e + e + m for grouped WE/WE/M input.
+        val whole = paths[raw.length].filter { it.segments == 1 || it.minimumWeight >= MIN_COMPOSITION_WEIGHT }
+            .map { Pinyin18Candidate(it.text, it.spelling, raw.length,
+                it.score + if (it.segments > 1) learning(it.text) else 0.0) }
+        val lexical = direct.map { word -> Pinyin18Candidate(word.entry.text,
+            word.entry.spelling + if (word.abbreviated) " · 简拼" else "", word.end,
+            score(word) + if (word.end == raw.length) COMPLETE_WORD_BONUS else 0.0) }
         val completion = dictionary.completions(raw, 0).map { entry ->
             Pinyin18Candidate(entry.text, entry.spelling + " · 补全", raw.length,
                 entry.score - dictionary.maxScore - 3.0 + learning(entry.text)) }
-        // Full input matches precede shorter word selections; incomplete spelling offers completions.
-        candidates = (whole.sortedByDescending { it.score } +
-            prefix.sortedWith(compareByDescending<Pinyin18Candidate> { it.consumed }.thenByDescending { it.score }) +
-            completion.sortedByDescending { it.score }).distinctBy { it.text to it.consumed }.take(MAX_CANDIDATES)
+        // Rank corpus words, valid sentences and partial selections together. A fabricated
+        // complete path no longer beats every real word merely because it consumes all taps.
+        candidates = (lexical + whole + completion).sortedByDescending {
+            it.score - PREFIX_PENALTY * (raw.length - it.consumed)
+        }.distinctBy { it.text to it.consumed }.take(MAX_CANDIDATES)
     }
     private fun learning(text: String) = kotlin.math.ln(1.0 + frequency(text).coerceIn(0, 10_000)) * 0.6
     private fun prune(paths: MutableList<Path>) {
@@ -107,6 +126,11 @@ class Keyboard18Engine(private val dictionary: Keyboard18Dictionary,
         private const val MAX_INPUT = 64
         private const val BEAM = 8
         private const val WORD_PENALTY = 0.7
+        private const val INITIAL_PENALTY = 1.2
+        private const val COMPLETE_WORD_BONUS = 4.0
+        private const val PREFIX_PENALTY = 1.5
+        private const val REPETITION_PENALTY = 6.0
+        private const val MIN_COMPOSITION_WEIGHT = 32
         private const val MAX_CANDIDATES = 160
     }
 }

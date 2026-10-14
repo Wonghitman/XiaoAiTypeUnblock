@@ -17,8 +17,8 @@ android {
         applicationId = "io.mo.xatype"
         minSdk = 26
         targetSdk = 34
-        versionCode = 12
-        versionName = "2.1.7"
+        versionCode = 13
+        versionName = "2.1.8"
         // DexKit ships a native library; the module only runs in ARM host processes.
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }
@@ -62,7 +62,7 @@ android {
         create("keyboard18Prototype") {
             initWith(getByName("release"))
             signingConfig = getByName("release").signingConfig ?: signingConfigs.getByName("debug")
-            versionNameSuffix = "-keyboard18-prototype2"
+            versionNameSuffix = "-keyboard18-prototype3"
             matchingFallbacks += "release"
         }
         create("diagnostic") {

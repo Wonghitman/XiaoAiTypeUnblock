@@ -95,7 +95,7 @@ class Keyboard18Activity : AppCompatActivity() {
         body.addView(settings, spaced())
 
         body.addView(text("试试18键", ShapeUiStyle.HEADING, strong = true), spaced())
-        body.addView(text("下方预览可以直接输入，无需启用模块。它使用与宿主相同的离线解码器。",
+        body.addView(text("支持全拼和首字母简拼。例如「为什么」简拼 wsm：依次点 WE、SD、M。下方预览使用与宿主相同的离线解码器。",
             ShapeUiStyle.CAPTION, secondary = true), spaced())
         val preview = card()
         output = EditText(this).apply {
@@ -225,7 +225,7 @@ class Keyboard18Activity : AppCompatActivity() {
     private fun showResult(result: io.mo.xatype.keyboard18.Pinyin18Result) { result.commit?.let(::insert); showCandidates() }
     private fun showCandidates() {
         val decoder = engine
-        composing.text = decoder?.display?.ifEmpty { if (english) "英文：点按首字母，长按选择另一字母" else "点按分组输入，长按选择准确字母" }
+        composing.text = decoder?.display?.ifEmpty { if (english) "英文：点按首字母，长按选择另一字母" else "全拼 / 简拼：为什么 → WE · SD · M" }
         candidateRow.removeAllViews()
         decoder?.candidates?.take(40)?.forEachIndexed { index, candidate ->
             candidateRow.addView(button(candidate.text) { decoder.select(index)?.let(::insert); showCandidates() },

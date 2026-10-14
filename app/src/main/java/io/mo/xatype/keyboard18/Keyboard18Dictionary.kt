@@ -6,6 +6,8 @@ import kotlin.math.ln
 
 data class Pinyin18Entry(val text: String, val spelling: String, val weight: Int) {
     val code = spelling.replace(" ", "")
+    val initials = spelling.split(' ').joinToString("") { it.first().toString() }
+    val syllableCount = initials.length
     val boundaries = buildSet {
         var position = 0
         spelling.forEach { if (it == ' ') add(position) else position++ }
@@ -21,6 +23,7 @@ class Keyboard18Dictionary private constructor(val entries: List<Pinyin18Entry>)
         val completions = ArrayList<Pinyin18Entry>()
     }
     private val root = Node()
+    private val initialRoot = Node()
     val maxLength = entries.maxOf { it.code.length }
     val maxScore = entries.maxOf { it.score }
 
@@ -33,26 +36,41 @@ class Keyboard18Dictionary private constructor(val entries: List<Pinyin18Entry>)
                 if (node.completions.size < COMPLETIONS) node.completions.add(entry)
             }
             node.words.add(entry)
+            // Index each syllable's first letter separately from the literal full spelling.
+            // A grouped tap still has to contain that initial: WE is never an alias for S.
+            if (entry.initials != entry.code) {
+                var initialNode = initialRoot
+                entry.initials.forEach { letter ->
+                    initialNode = initialNode.children.getOrPut(Keyboard18Keys.representative(letter)) { Node() }
+                }
+                initialNode.words.add(entry)
+            }
         }
     }
 
-    private fun compatible(entry: Pinyin18Entry, raw: String, start: Int, end: Int): Boolean {
+    private fun compatible(entry: Pinyin18Entry, raw: String, start: Int, end: Int, abbreviated: Boolean = false): Boolean {
+        val code = if (abbreviated) entry.initials else entry.code
         var letter = 0
         for (position in start until end) {
             val token = raw[position]
             if (token == '\'') {
-                if (letter !in entry.boundaries) return false
+                if (abbreviated) {
+                    if (letter <= 0 || letter >= code.length) return false
+                } else if (letter !in entry.boundaries) return false
             } else {
-                if (letter >= entry.code.length || !Keyboard18Keys.matches(token, entry.code[letter])) return false
+                if (letter >= code.length || !Keyboard18Keys.matches(token, code[letter])) return false
                 letter++
             }
         }
         return true
     }
 
-    fun words(raw: String, start: Int): List<Pair<Int, Pinyin18Entry>> {
+    fun words(raw: String, start: Int) = findWords(root, raw, start, false)
+    fun abbreviations(raw: String, start: Int) = findWords(initialRoot, raw, start, true)
+
+    private fun findWords(rootNode: Node, raw: String, start: Int, abbreviated: Boolean): List<Pair<Int, Pinyin18Entry>> {
         val result = ArrayList<Pair<Int, Pinyin18Entry>>()
-        var node = root
+        var node = rootNode
         var count = 0
         for (position in start until raw.length) {
             val token = raw[position]
@@ -61,7 +79,7 @@ class Keyboard18Dictionary private constructor(val entries: List<Pinyin18Entry>)
             node = node.children[Keyboard18Keys.projected(token)] ?: break
             var retained = 0
             for (entry in node.words) {
-                if (compatible(entry, raw, start, position + 1)) {
+                if (compatible(entry, raw, start, position + 1, abbreviated)) {
                     result.add(position + 1 to entry)
                     if (++retained == WORDS_PER_CODE) break
                 }
