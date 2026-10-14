@@ -230,6 +230,8 @@ XiaoAiTypeUnblock/
 
 已完成 `./gradlew :app:assembleKeyboard18Prototype` 构建；按本次要求未运行功能测试，尚未验收为日常版本。使用方法、源码接入、词库来源及当前限制见[18键原型说明](docs/keyboard18-prototype-20261014.md)。
 
+2.1.7 修复18键宿主服务字段类型匹配错误导致 Hook 未安装的问题，并在设置页显示安装失败原因和布局替换状态。升级后重启输入法，再选择「拼音26键」。
+
 ## 🏗️ 编译构建
 
 本项目使用 Gradle 构建。建议在具备 Android SDK 的环境下执行：

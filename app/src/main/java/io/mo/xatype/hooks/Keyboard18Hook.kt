@@ -1,6 +1,8 @@
 package io.mo.xatype.hooks
 
 import android.content.Context
+import android.app.Application
+import android.app.Instrumentation
 import android.inputmethodservice.InputMethodService
 import android.os.Build
 import android.os.Bundle
@@ -26,8 +28,35 @@ object Keyboard18Hook {
     @Volatile private var service: InputMethodService? = null
     @Volatile private var layoutMode = "PINYIN"
     @Volatile private var chineseReady = false
+    @Volatile private var installFailure: Throwable? = null
+    @Volatile private var layoutReported = false
+    @Volatile private var applicationContext: Context? = null
 
     fun install(module: XposedInterface, loader: ClassLoader) {
+        // Package hooks install before Application exists. Keep this observer independent
+        // so even an ABI-resolution failure can reach the module's status page.
+        val applicationCreate = Instrumentation::class.java.getDeclaredMethod(
+            "callApplicationOnCreate", Application::class.java)
+        module.hook(applicationCreate).intercept { chain ->
+            val result = chain.proceed()
+            val context = chain.getArg(0) as? Context
+            if (context?.packageName == "com.xiaomi.type") {
+                applicationContext = context.applicationContext ?: context
+                installFailure?.let { reportFailure(context, module, "Hook安装失败", it) }
+            }
+            result
+        }
+        module.deoptimize(applicationCreate)
+        try {
+            installHostHooks(module, loader)
+        } catch (failure: Throwable) {
+            installFailure = failure
+            applicationContext?.let { reportFailure(it, module, "Hook安装失败", failure) }
+            throw failure
+        }
+    }
+
+    private fun installHostHooks(module: XposedInterface, loader: ClassLoader) {
         val bridge = Keyboard18HostBridge(loader)
         val layouts = Keyboard18HostLayout(loader)
         val manager = Class.forName("ab.x0", false, loader)
@@ -47,7 +76,8 @@ object Keyboard18Hook {
         val layoutFactory = Class.forName("ab.p1", false, loader).getDeclaredMethod("e",
             String::class.java, Integer::class.java, String::class.java, Boolean::class.javaPrimitiveType,
             Class.forName("la.a", false, loader))
-        val layoutContext = layoutFactory.declaringClass.declaredFields.single { it.type == Context::class.java }
+        // ab.p1.a is declared as MiInputMethodService, not its Context superclass.
+        val layoutContext = layoutFactory.declaringClass.declaredFields.single { hostService.isAssignableFrom(it.type) }
             .apply { isAccessible = true }
         val macros = Class.forName("ab.s0", false, loader).getDeclaredMethod("l", bridge.baseInterface)
         require(factory.returnType == bridge.baseInterface && layoutFactory.returnType == layouts.layout)
@@ -119,6 +149,7 @@ object Keyboard18Hook {
             if (chain.getArg(0) !== bridge.pinyin) chain.proceed() else {
                 val config = runCatching { load(context) }.onFailure {
                     XposedUtils.logError(module, "18-key dictionary unavailable; retaining native input", it)
+                    reportFailure(context, module, "设置或词库读取失败", it)
                 }.getOrNull()
                 val dictionary = config?.dictionary
                 if (dictionary == null) chain.proceed() else runCatching {
@@ -135,7 +166,11 @@ object Keyboard18Hook {
                         if (first.compareAndSet(false, true)) report(context, config.settings, "已收到18键输入（未做运行验收）")
                     }
                 }.onSuccess { chineseReady = true }
-                    .onFailure { chineseReady = false; XposedUtils.logError(module, "18-key engine creation failed", it) }
+                    .onFailure {
+                        chineseReady = false
+                        XposedUtils.logError(module, "18-key engine creation failed", it)
+                        reportFailure(context, module, "引擎创建失败", it)
+                    }
                     .getOrElse { chain.proceed() }
             }
         }
@@ -143,10 +178,20 @@ object Keyboard18Hook {
         module.hook(layoutFactory).intercept { chain ->
             val original = chain.proceed()!!
             val context = layoutContext.get(chain.thisObject) as Context
-            val config = runCatching { load(context) }.getOrNull()
+            val config = runCatching { load(context) }.onFailure {
+                XposedUtils.logError(module, "18-key layout settings unavailable", it)
+                reportFailure(context, module, "布局设置读取失败", it)
+            }.getOrNull()
             val english = chain.getArg(3) == true
             if (config?.dictionary == null || (!english && (!chineseReady || layoutMode != "PINYIN"))) original else runCatching {
-                layouts.rebuild(original, chain.getArg(3) == true)
+                layouts.rebuild(original, english).also { rebuilt ->
+                    if (!layoutReported) {
+                        layoutReported = true
+                        report(context, config.settings, if (rebuilt !== original)
+                            "18键布局已替换（${if (english) "英文" else "中文"}）"
+                        else "18键未替换：当前不是标准26键布局（分离布局暂不支持）")
+                    }
+                }
             }.onFailure {
                 XposedUtils.logError(module, "18-key layout unavailable; retaining native layout", it)
                 report(context, config.settings, "18键布局接入失败，已保留原布局")
@@ -180,6 +225,22 @@ object Keyboard18Hook {
         reports.execute { runCatching { app.contentResolver.call(Keyboard18ContentProvider.CONTENT_URI, "report", null,
             Bundle().apply { putLong(Keyboard18Store.REVISION, settings.getLong(Keyboard18Store.REVISION))
                 putString(Keyboard18Store.STATUS, message) }) } }
+    }
+    private fun reportFailure(context: Context, module: XposedInterface, stage: String, failure: Throwable) {
+        val app = context.applicationContext ?: context
+        reports.execute {
+            runCatching {
+                val settings = app.contentResolver.call(Keyboard18ContentProvider.CONTENT_URI, "snapshot", null, null)
+                    ?: return@runCatching
+                if (!settings.getBoolean(Keyboard18Store.ENABLED)) return@runCatching
+                val cause = generateSequence(failure) { it.cause }.last()
+                val message = "18键未接入：$stage；${cause.javaClass.simpleName}: ${cause.message.orEmpty()}".take(400)
+                app.contentResolver.call(Keyboard18ContentProvider.CONTENT_URI, "report", null, Bundle().apply {
+                    putLong(Keyboard18Store.REVISION, settings.getLong(Keyboard18Store.REVISION))
+                    putString(Keyboard18Store.STATUS, message)
+                })
+            }.onFailure { XposedUtils.logWarn(module, "Unable to deliver 18-key failure status: ${it.javaClass.simpleName}") }
+        }
     }
     private fun shortcut(service: InputMethodService?, action: String) {
         val connection = service?.currentInputConnection ?: return

@@ -1,4 +1,10 @@
-# 18键键盘原型 1
+# 18键键盘原型
+
+## 2.1.7 / 原型2 修复
+
+修复“开启并重启后仍显示26键”的一个确定接入错误：原型1按字段声明类型严格等于 `Context` 查找 `ab.p1` 的服务字段，而实际宿主 smali 声明为 `MiInputMethodService`。字段解析在所有18键宿主 Hook 安装之前失败，导致整个18键入口未安装。原型2按宿主服务类型匹配，并在 Application 初始化后将 Hook 安装、配置/词库读取和引擎创建的失败原因报告到18键设置页。
+
+设置页现在还区分“18键布局已替换”和“当前不是标准26键布局”，便于定位后续问题。这些状态表示代码阶段结果，不能代替查看实际键盘。升级至2.1.7后重新启动输入法，在小爱中选择「拼音26键」。本地仍未连接可用的已授权测试设备，未声明真机验证通过。
 
 本版新增图片中的 18 键字母布局、独立离线拼音解码、宿主候选栏接入，以及模块内可直接操作的键盘预览。**已完成安装包构建；按用户要求未运行单元测试、模拟器或真机功能测试，不能视为已经验收的日常版本。**
 
@@ -84,7 +90,7 @@ python -X utf8 scripts/update-keyboard18-table.py
 
 离线重建词库可给脚本传入 `--source-dir`，该目录需有上述固定提交的 `pinyin_simp.dict.yaml` 和 `LICENSE`。
 
-输出目录：`app/build/outputs/apk/keyboard18Prototype/`。交付副本：`app/release/XiaoAiTypeUnblock-2.1.6-keyboard18-prototype1.apk`。
+输出目录：`app/build/outputs/apk/keyboard18Prototype/`。当前交付副本：`app/release/XiaoAiTypeUnblock-2.1.7-keyboard18-prototype2.apk`；原型1副本仍保留在本地。
 
 该构建类型优先使用配置的正式签名，否则使用开发签名。APK 与主模块使用同一 applicationId；覆盖安装要求签名一致，不能为了看预览自动移除已安装模块或其设置。
 
