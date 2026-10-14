@@ -1,5 +1,13 @@
 # 18键键盘原型
 
+## 2.1.9 / 原型4：键面排版
+
+修正字母键的 `useSpecialBackground` 标记，使用宿主字母键配色，继续尊重模块现有的外观设置。双字母以细空格分开；宽度权重调整为1.6，Shift/退格为1.3；第二行加入两个不响应输入的原生 `GAP`，形成对称缩进。私有码元、弹出字母和快捷操作仍按原编码处理，显示空格不进入解码器。
+
+新增按单个18键字母键作用域执行的 Compose 外观 Hook：字号为宿主计算值的90%，保留其缩放；上方提示从右对齐改为居中。设置页同步采用提示在上、字母在下的字号层次和独立圆角键面。外观 Hook 解析失败时记录日志，输入引擎仍可安装。宿主绘制路径与接口依据见[外观接入分析](2026-10-14_逆向-18键外观-report.md)。
+
+本地仅完成构建，GitHub 执行既有单元测试和签名构建；实际主题、按压和旋转效果需在手机确认。
+
 ## 2.1.8 / 原型3：首字母简拼和候选排序
 
 用户实际输入 `WE → SD → M`，对应 `wsm`，按键顺序正确。旧版仅索引全拼，未将这组输入匹配到词库里已有的 `wei shen me / 为什么`，并且优先显示硬拼出的整串候选。本版新增每个音节首字母的独立索引，统一排序完整词语、组句、前缀候选和补全，降低重复单字组合的优先级，避免用极低词频条目拼出整句。
@@ -98,7 +106,7 @@ python -X utf8 scripts/update-keyboard18-table.py
 
 离线重建词库可给脚本传入 `--source-dir`，该目录需有上述固定提交的 `pinyin_simp.dict.yaml` 和 `LICENSE`。
 
-输出目录：`app/build/outputs/apk/keyboard18Prototype/`。当前交付副本：`app/release/XiaoAiTypeUnblock-2.1.8-keyboard18-prototype3.apk`。正式签名安装包由 GitHub 工作流生成。
+输出目录：`app/build/outputs/apk/keyboard18Prototype/`。当前交付副本：`app/release/XiaoAiTypeUnblock-2.1.9-keyboard18-prototype4.apk`。正式签名安装包由 GitHub 工作流生成。
 
 该构建类型优先使用配置的正式签名，否则使用开发签名。APK 与主模块使用同一 applicationId；覆盖安装要求签名一致，不能为了看预览自动移除已安装模块或其设置。
 

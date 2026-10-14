@@ -13,6 +13,7 @@ import io.mo.xatype.keyboard18.Keyboard18Dictionary
 import io.mo.xatype.keyboard18.Keyboard18Engine
 import io.mo.xatype.keyboard18.Keyboard18HostBridge
 import io.mo.xatype.keyboard18.Keyboard18HostLayout
+import io.mo.xatype.keyboard18.Keyboard18HostAppearance
 import io.mo.xatype.keyboard18.Keyboard18Keys
 import io.mo.xatype.keyboard18.Keyboard18Store
 import io.mo.xatype.provider.Keyboard18ContentProvider
@@ -198,6 +199,10 @@ object Keyboard18Hook {
             }.getOrDefault(original)
         }
         module.deoptimize(layoutFactory)
+        // Optional presentation hooks must not prevent the input engine from installing.
+        runCatching { Keyboard18HostAppearance(layouts).install(module, loader) }.onFailure {
+            XposedUtils.logError(module, "18-key typography unavailable; retaining native typography", it)
+        }
         XposedUtils.log(module, "18-key prototype hooks installed (opt-in, host 21053)")
     }
 

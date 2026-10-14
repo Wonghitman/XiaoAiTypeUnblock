@@ -17,9 +17,22 @@ class Keyboard18HostLayout(loader: ClassLoader) {
     private val layoutConstructor = layout.getConstructor(string, string, List::class.java, List::class.java,
         java.lang.Float::class.java, java.lang.Float::class.java, bool, java.lang.Float::class.java, bool)
     private val charKind = kind.enumConstants.single { (it as Enum<*>).name == "CHAR" }
+    private val gapKind = kind.enumConstants.single { (it as Enum<*>).name == "GAP" }
     private val fields = key.declaredFields.associateBy { it.name }.onEach { it.value.isAccessible = true }
     private fun value(instance: Any, name: String): Any? = instance.javaClass.getDeclaredField(name)
         .apply { isAccessible = true }.get(instance)
+
+    /** Require the generated code/label/hint combination, so other layouts keep native styling. */
+    fun groupOf(instance: Any): String? {
+        if (!key.isInstance(instance) || fields.getValue("f").get(instance) !== charKind) return null
+        val code = fields.getValue("a").getInt(instance)
+        val group = Keyboard18Keys.group(code) ?: Keyboard18Keys.groups.firstOrNull {
+            it.first() == code.toChar().lowercaseChar()
+        } ?: return null
+        val label = fields.getValue("b").get(instance)
+        if (label != Keyboard18Style.label(group) && label != Keyboard18Style.label(group, true)) return null
+        return group.takeIf { fields.getValue("g").get(instance) == Keyboard18Keys.hints[Keyboard18Keys.groups.indexOf(group)] }
+    }
     fun rebuild(original: Any, english: Boolean): Any {
         if (value(original, "a") != "qwerty") return original
         @Suppress("UNCHECKED_CAST")
@@ -33,7 +46,7 @@ class Keyboard18HostLayout(loader: ClassLoader) {
         val shift = originals.firstOrNull { fields.getValue("a").getInt(it) == -1 } ?: return original
         val delete = originals.firstOrNull { fields.getValue("a").getInt(it) == -2 } ?: return original
         val height = fields.getValue("e").get(template)
-        val spacing = (value(original, "f") as? Float) ?: 5f
+        val spacing = (value(original, "f") as? Float) ?: Keyboard18Style.FALLBACK_SPACING
         @Suppress("UNCHECKED_CAST")
         val first = value(rows[0], "a") as List<Any>
         val fixed = first.map { fields.getValue("d").get(it) as? Float }
@@ -41,7 +54,9 @@ class Keyboard18HostLayout(loader: ClassLoader) {
         val uppercase = letters.any { fields.getValue("a").getInt(it).toChar() in 'A'..'Z' }
         fun newKey(code: Int, label: String, weight: Float, hint: String?, popup: List<String>?): Any =
             keyConstructor.newInstance(code, label, weight, null, height, charKind, hint,
-                hint?.takeIf { it.length == 1 }, popup, 0, null, false, english, true, false, null, false, null)
+                hint?.takeIf { it.length == 1 }, popup, 0, null, false, english, false, false, null, false, null)
+        fun gap(): Any = keyConstructor.newInstance(-998, "", Keyboard18Style.SIDE_WEIGHT, null,
+            height, gapKind, null, null, null, null, null, false, null, false, false, null, false, null)
         fun resized(source: Any, fixedWidth: Float?, weight: Float): Any = keyConstructor.newInstance(
             fields.getValue("a").get(source), fields.getValue("b").get(source), weight, fixedWidth,
             fields.getValue("e").get(source), fields.getValue("f").get(source), fields.getValue("g").get(source),
@@ -55,11 +70,15 @@ class Keyboard18HostLayout(loader: ClassLoader) {
                 val popup = group.map { if (uppercase) it.uppercaseChar().toString() else it.toString() } +
                     listOf(hint).filter { it.length == 1 } + listOfNotNull(Keyboard18Keys.shortcuts[group])
                 newKey(if (english) (if (uppercase) group.first().uppercaseChar() else group.first()).code else Keyboard18Keys.code(group),
-                    if (uppercase) group.uppercase() else group, if (group.length == 2) 1.7f else 1f, hint, popup)
+                    Keyboard18Style.label(group, uppercase), Keyboard18Style.weight(group), hint, popup)
             }.toMutableList()
-            if (index == 2) { keys.add(0, resized(shift, null, 1.3f)); keys.add(resized(delete, null, 1.3f)) }
+            if (index == 1) { keys.add(0, gap()); keys.add(gap()) }
+            if (index == 2) { keys.add(0, resized(shift, null, Keyboard18Style.CONTROL_WEIGHT))
+                keys.add(resized(delete, null, Keyboard18Style.CONTROL_WEIGHT)) }
             val total = keys.sumOf { fields.getValue("c").getFloat(it).toDouble() }.toFloat()
-            val available = width?.let { (it - spacing * (keys.size - 1)).coerceAtLeast(1f) }
+            // Native GAP items occupy width without adding a key separator.
+            val visibleCount = keys.count { fields.getValue("f").get(it) !== gapKind }
+            val available = width?.let { (it - spacing * (visibleCount - 1)).coerceAtLeast(1f) }
             val sized = keys.map { item -> val weight = fields.getValue("c").getFloat(item)
                 resized(item, available?.let { it * weight / total }, weight) }
             rowConstructor.newInstance(value(rows[index], "b"), sized, null)

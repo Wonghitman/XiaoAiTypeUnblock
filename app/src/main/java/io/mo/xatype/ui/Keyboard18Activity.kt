@@ -2,6 +2,10 @@ package io.mo.xatype.ui
 
 import android.graphics.Typeface
 import android.os.Bundle
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
+import android.text.style.RelativeSizeSpan
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.View
@@ -24,6 +28,7 @@ import io.mo.xatype.keyboard18.Keyboard18Dictionary
 import io.mo.xatype.keyboard18.Keyboard18Engine
 import io.mo.xatype.keyboard18.Keyboard18Keys
 import io.mo.xatype.keyboard18.Keyboard18Store
+import io.mo.xatype.keyboard18.Keyboard18Style
 import java.util.concurrent.Executors
 
 /** Interactive local preview uses the same dictionary and decoder as the host hook. */
@@ -116,9 +121,10 @@ class Keyboard18Activity : AppCompatActivity() {
             addView(candidateRow, android.widget.FrameLayout.LayoutParams(-2, -2)) }, LinearLayout.LayoutParams(-1, -2))
         Keyboard18Keys.rows.forEachIndexed { rowIndex, groups ->
             val row = LinearLayout(this).apply { gravity = Gravity.CENTER; orientation = LinearLayout.HORIZONTAL }
+            if (rowIndex == 1) row.addView(View(this), LinearLayout.LayoutParams(0, 0, Keyboard18Style.SIDE_WEIGHT))
             if (rowIndex == 2) {
                 shiftButton = keyButton("⇧") { flush(); uppercase = !uppercase; labels() }
-                row.addView(shiftButton, keyParams(1.3f))
+                row.addView(shiftButton, keyParams(Keyboard18Style.CONTROL_WEIGHT))
             }
             groups.forEach { group ->
                 val button = keyButton(group) {
@@ -129,8 +135,9 @@ class Keyboard18Activity : AppCompatActivity() {
                 button.contentDescription = "${group.uppercase()}键，长按选择字母或快捷操作"
                 button.setOnLongClickListener { popup(group); true }
                 letterButtons[group] = button
-                row.addView(button, keyParams(if (group.length == 2) 1.7f else 1f))
+                row.addView(button, keyParams(Keyboard18Style.weight(group)))
             }
+            if (rowIndex == 1) row.addView(View(this), LinearLayout.LayoutParams(0, 0, Keyboard18Style.SIDE_WEIGHT))
             if (rowIndex == 2) {
                 val delete = keyButton("⌫") {
                     val decoder = engine ?: return@keyButton
@@ -143,7 +150,7 @@ class Keyboard18Activity : AppCompatActivity() {
                 }
                 delete.contentDescription = "退格，长按清空预览"
                 delete.setOnLongClickListener { engine?.clear(); output.text.clear(); showCandidates(); true }
-                row.addView(delete, keyParams(1.3f))
+                row.addView(delete, keyParams(Keyboard18Style.CONTROL_WEIGHT))
             }
             preview.addView(row, LinearLayout.LayoutParams(-1, -2))
         }
@@ -162,7 +169,7 @@ class Keyboard18Activity : AppCompatActivity() {
         preview.addView(progress, spaced())
         preview.addView(button("清空预览") { engine?.clear(); output.text.clear(); showCandidates() }, spaced())
         body.addView(preview, spaced())
-        body.addView(text("此原型限定小爱0.2.1053，尚未运行测试。使用独立离线候选，不沿用讯飞云候选；平板分离布局暂保留原布局。",
+        body.addView(text("适配小爱0.2.1053，真机使用效果仍待确认。使用独立离线候选；平板分离布局暂保留原布局。",
             ShapeUiStyle.CAPTION, secondary = true), spaced())
         body.addView(button("重新读取词库") { prepareDictionary() }, spaced())
 
@@ -217,7 +224,11 @@ class Keyboard18Activity : AppCompatActivity() {
     private fun labels() {
         letterButtons.forEach { (group, view) ->
             val index = Keyboard18Keys.groups.indexOf(group)
-            view.text = (if (uppercase) group.uppercase() else group) + "\n" + Keyboard18Keys.hints[index]
+            val hint = Keyboard18Keys.hints[index]
+            view.text = SpannableString(hint + "\n" + Keyboard18Style.label(group, uppercase)).apply {
+                setSpan(RelativeSizeSpan(Keyboard18Style.PREVIEW_HINT_SCALE), 0, hint.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                setSpan(ForegroundColorSpan(style.secondary), 0, hint.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
         }
         languageButton.text = if (english) "英" else "中"
         shiftButton.text = if (uppercase) "⇪" else "⇧"
@@ -282,16 +293,17 @@ class Keyboard18Activity : AppCompatActivity() {
         setOnClickListener { performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY); action() }
     }
     private fun keyButton(label: String, accent: Boolean = false, action: () -> Unit) = button(label, accent, action).apply {
-        minWidth = 0; minimumWidth = 0; textSize = KEY_TEXT_SIZE
+        minWidth = 0; minimumWidth = 0; textSize = Keyboard18Style.PREVIEW_TEXT_SIZE
+        includeFontPadding = false; gravity = Gravity.CENTER
+        background = style.ripple(if (accent) style.accent else style.background, Keyboard18Style.PREVIEW_RADIUS)
         setPadding(0, style.dp(ShapeUiStyle.XS), 0, style.dp(ShapeUiStyle.XS))
         minHeight = style.dp(ShapeUiStyle.BUTTON); previewControls.add(this)
     }
     private fun keyParams(weight: Float) = LinearLayout.LayoutParams(0, -2, weight).apply {
-        setMargins(style.dp(KEY_GAP), style.dp(KEY_GAP), style.dp(KEY_GAP), style.dp(KEY_GAP)) }
+        setMargins(style.dp(Keyboard18Style.PREVIEW_GAP), style.dp(Keyboard18Style.PREVIEW_GAP),
+            style.dp(Keyboard18Style.PREVIEW_GAP), style.dp(Keyboard18Style.PREVIEW_GAP)) }
     private fun spaced() = LinearLayout.LayoutParams(-1, -2).apply { topMargin = style.dp(ShapeUiStyle.MD) }
     companion object {
         private const val PREVIEW_OUTPUT_HEIGHT = 80
-        private const val KEY_TEXT_SIZE = 17f
-        private const val KEY_GAP = 2
     }
 }
