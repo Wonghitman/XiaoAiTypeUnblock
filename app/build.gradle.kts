@@ -59,6 +59,12 @@ android {
             versionNameSuffix = "-shape-prototype1"
             matchingFallbacks += "release"
         }
+        create("keyboard18Prototype") {
+            initWith(getByName("release"))
+            signingConfig = getByName("release").signingConfig ?: signingConfigs.getByName("debug")
+            versionNameSuffix = "-keyboard18-prototype1"
+            matchingFallbacks += "release"
+        }
         create("diagnostic") {
             initWith(getByName("release"))
             signingConfig = getByName("release").signingConfig ?: signingConfigs.getByName("debug")

@@ -53,6 +53,7 @@
         </activity>
 
         <activity android:name=".ui.ShapeInputActivity" android:exported="false" />
+        <activity android:name=".ui.Keyboard18Activity" android:exported="false" />
 
         <!-- The launcher icon; the "hide launcher icon" switch disables it. -->
         <activity-alias
@@ -75,6 +76,12 @@
         <provider
             android:name=".provider.ShapeContentProvider"
             android:authorities="io.mo.xatype.shapeprovider"
+            android:directBootAware="true"
+            android:exported="true" />
+
+        <provider
+            android:name=".provider.Keyboard18ContentProvider"
+            android:authorities="io.mo.xatype.keyboard18provider"
             android:directBootAware="true"
             android:exported="true" />
 

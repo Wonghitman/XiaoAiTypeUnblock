@@ -99,6 +99,14 @@
                 android:minHeight="52dp"
                 android:text="形码输入 · 虎码 / 五笔（实验）" />
 
+            <Button
+                android:id="@+id/btnKeyboard18"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:minHeight="52dp"
+                android:text="18键键盘 · 离线拼音 / 可交互预览（原型）" />
+
             <!-- Section Title: Switches -->
             <TextView
                 android:layout_width="wrap_content"

@@ -109,6 +109,7 @@ object ShapeStore {
     )
 
     fun saveBoolean(context: Context, key: String, value: Boolean) {
+        if (key == ENABLED && value) io.mo.xatype.keyboard18.Keyboard18Store.setEnabled(context, false)
         val sp = prefs(context)
         check(sp.edit().putBoolean(key, value).putLong(REVISION, sp.getLong(REVISION, 0) + 1)
             .remove(STATUS).remove(STATUS_TIME).commit())

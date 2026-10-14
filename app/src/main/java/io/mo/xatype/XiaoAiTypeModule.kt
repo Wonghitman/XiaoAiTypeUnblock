@@ -14,6 +14,7 @@ import io.mo.xatype.hooks.CloudBlacklistHook
 import io.mo.xatype.hooks.HyperOsVersionHook
 import io.mo.xatype.hooks.InputDiagnosticsHook
 import io.mo.xatype.hooks.ShapeInputHook
+import io.mo.xatype.hooks.Keyboard18Hook
 import io.mo.xatype.hooks.KeyboardStyleHook
 import io.mo.xatype.hooks.KeyboardHeightUnblockHook
 import io.mo.xatype.hooks.KeyboardBottomSpacingHook
@@ -96,6 +97,12 @@ class XiaoAiTypeModule : XposedModule() {
             ShapeInputHook.install(this, classLoader)
         } catch (t: Throwable) {
             XposedUtils.logError(this, "Shape input unavailable for this host ABI", t)
+        }
+
+        try {
+            Keyboard18Hook.install(this, classLoader)
+        } catch (t: Throwable) {
+            XposedUtils.logError(this, "18-key keyboard unavailable for this host ABI", t)
         }
 
         if (BuildConfig.INPUT_DIAGNOSTICS) {
