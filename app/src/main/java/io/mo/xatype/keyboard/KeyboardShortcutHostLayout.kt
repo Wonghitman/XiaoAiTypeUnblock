@@ -24,7 +24,10 @@ class KeyboardShortcutHostLayout(loader: ClassLoader) {
         if ((fields[5].get(instance) as Enum<*>).name != "CHAR") return null
         val code = fields[0].getInt(instance)
         if (code !in 'a'.code..'z'.code && code !in 'A'.code..'Z'.code) return null
-        return code.toChar().takeIf { fields[1].get(instance) == it.toString() }
+        val label = fields[1].get(instance) as? String ?: return null
+        // Native key labels can stay uppercase while input codes remain lowercase.
+        // Require the same single letter without conflating display case and input case.
+        return code.toChar().takeIf { label.length == 1 && label[0].equals(it, ignoreCase = true) }
     }
 
     fun addTo(original: Any): Any {

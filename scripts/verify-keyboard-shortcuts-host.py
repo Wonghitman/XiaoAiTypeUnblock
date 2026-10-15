@@ -24,6 +24,8 @@ required = {
     "ka/e": [".method public constructor <init>(FLjava/util/List;Ljava/util/List;)V",
              ".field public final a:Ljava/util/List;", ".field public final b:F", ".field public final c:Ljava/util/List;"],
     "ka/g": [".method public constructor <init>(Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/lang/Float;Ljava/lang/Float;ZLjava/lang/Float;Z)V"],
+    "ka/j": [".method public static e(CLjava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/Integer;ZZLjava/lang/Float;I)Lka/c;",
+             "Ljava/lang/Character;->toLowerCase(C)C", "Ljava/lang/Character;->toUpperCase(C)C"],
     "ab/p1": [".field public final a:Lcom/mi/ime/MiInputMethodService;",
               ".method public final e(Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;ZLla/a;)Lka/g;",
               ".method public final H(Lz8/g;Landroid/view/inputmethod/EditorInfo;Z)V",

@@ -7,12 +7,18 @@ import org.junit.Test
 class KeyboardShortcutsTest {
     private val loader = javaClass.classLoader!!
     private val adapter = KeyboardShortcutHostLayout(loader)
-    private fun key(char: Char, popup: List<String>? = null, hint: String? = "?") = ka.c(char.code,
-        char.toString(), 1f, 36f, 48f, ka.f.CHAR, hint, hint, popup, 3, 5, true, true, true, true, 7, true, 9)
-    private fun layout(uppercase: Boolean = false, split: Boolean = false): ka.g {
+    private fun key(char: Char, popup: List<String>? = null, hint: String? = "?", label: String = char.toString()) = ka.c(char.code,
+        label, 1f, 36f, 48f, ka.f.CHAR, hint, hint, popup, 3, 5, true, true, true, true, 7, true, 9)
+    private fun layout(uppercase: Boolean = false, split: Boolean = false, labelUppercase: Boolean = uppercase,
+                       nativePopups: Boolean = false): ka.g {
         val rows = listOf("qwertyuiop", "asdfghjkl", "zxcvbnm").mapIndexed { index, letters ->
-            val keys = letters.map { key(if (uppercase) it.uppercaseChar() else it,
-                if (it == 'c') listOf("ç", "ć") else null) }.toMutableList()
+            val keys = letters.map { letter ->
+                val hint = if (nativePopups) mapOf('z' to "（", 'c' to "-", 'v' to "_", 'b' to "：", 'm' to "…")[letter] ?: "?" else "?"
+                val popup = if (nativePopups) listOf(letter.uppercaseChar().toString(), hint, letter.toString())
+                    else if (letter == 'c') listOf("ç", "ć") else null
+                key(if (uppercase) letter.uppercaseChar() else letter, popup, hint,
+                    label = (if (labelUppercase) letter.uppercaseChar() else letter).toString())
+            }.toMutableList()
             if (index == 2) { keys.add(0, ka.c(-1, ka.f.SHIFT)); keys.add(ka.c(-2, ka.f.BACKSPACE)) }
             if (split) ka.e(1f, keys.take(keys.size / 2), keys.drop(keys.size / 2)) else ka.e(1f, keys, null)
         } + ka.e(1f, listOf(ka.c(32, ka.f.SPACE)), null)
@@ -50,6 +56,21 @@ class KeyboardShortcutsTest {
             assertEquals(5, keys(updated).count { it.i.orEmpty().any(KeyboardShortcuts.actions::contains) })
             assertEquals(listOf("ç", "ć", "复制"), keys(updated).single { it.a == 'C'.code }.i)
             assertEquals(split, updated.c.first().c != null)
+        }
+    }
+
+    @Test fun `native lowercase codes with uppercase labels still receive shortcuts`() {
+        for (english in listOf(false, true)) for (shift in listOf(false, true)) for (split in listOf(false, true)) {
+            // ka.p.b: Chinese labels stay uppercase; English labels follow Shift.
+            // ka.j.e: input code case always follows Shift independently of the label.
+            val original = layout(uppercase = shift, split = split, labelUppercase = !english || shift, nativePopups = true)
+            val updated = adapter.addTo(original) as ka.g
+            assertNotSame(original, updated)
+            assertEquals(5, keys(updated).count { it.i.orEmpty().any(KeyboardShortcuts.actions::contains) })
+            val copy = keys(updated).single { it.a == (if (shift) 'C' else 'c').code }
+            assertEquals(if (!english || shift) "C" else "c", copy.b)
+            assertEquals(listOf("C", "-", "c", "复制"), copy.i)
+            assertSame(updated, adapter.addTo(updated))
         }
     }
 
