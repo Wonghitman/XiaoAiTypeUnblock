@@ -16,6 +16,7 @@ import io.mo.xatype.keyboard18.Keyboard18HostLayout
 import io.mo.xatype.keyboard18.Keyboard18HostAppearance
 import io.mo.xatype.keyboard18.Keyboard18Keys
 import io.mo.xatype.keyboard18.Keyboard18Store
+import io.mo.xatype.keyboard.KeyboardChoice
 import io.mo.xatype.provider.Keyboard18ContentProvider
 import io.mo.xatype.util.XposedUtils
 import java.util.concurrent.Executors
@@ -112,7 +113,9 @@ object Keyboard18Hook {
                 refresh.invoke(callbacks, bridge.result(result))
             }
             fun flush() { session?.engine?.let { engine -> deliver(engine.snapshot(commit = engine.commitAll())) } }
-            val enabled = loaded?.dictionary != null
+            val enabled = loaded?.dictionary != null && service?.let {
+                KeyboardSelectionHook.selected(it) == KeyboardChoice.KEYBOARD18
+            } == true
             if (enabled && label in Keyboard18Keys.shortcuts.values) {
                 flush()
                 shortcut(session?.service ?: service, label)
@@ -147,7 +150,9 @@ object Keyboard18Hook {
         module.hook(factory).intercept { chain ->
             val context = contextField.get(chain.thisObject) as InputMethodService
             service = context
-            if (chain.getArg(0) !== bridge.pinyin) chain.proceed() else {
+            chineseReady = false
+            if (chain.getArg(0) !== bridge.pinyin || KeyboardSelectionHook.selected(context) != KeyboardChoice.KEYBOARD18)
+                chain.proceed() else {
                 val config = runCatching { load(context) }.onFailure {
                     XposedUtils.logError(module, "18-key dictionary unavailable; retaining native input", it)
                     reportFailure(context, module, "设置或词库读取失败", it)
@@ -179,6 +184,7 @@ object Keyboard18Hook {
         module.hook(layoutFactory).intercept { chain ->
             val original = chain.proceed()!!
             val context = layoutContext.get(chain.thisObject) as Context
+            if (KeyboardSelectionHook.selected(context) != KeyboardChoice.KEYBOARD18) return@intercept original
             val config = runCatching { load(context) }.onFailure {
                 XposedUtils.logError(module, "18-key layout settings unavailable", it)
                 reportFailure(context, module, "布局设置读取失败", it)
@@ -211,7 +217,7 @@ object Keyboard18Hook {
         loaded?.let { return it }
         val settings = context.contentResolver.call(Keyboard18ContentProvider.CONTENT_URI, "snapshot", null, null)
             ?: error("无法读取18键设置")
-        if (!settings.getBoolean(Keyboard18Store.ENABLED)) return Loaded(settings, null).also { loaded = it }
+        if (!settings.getBoolean(Keyboard18Store.SHOW_IN_PICKER)) return Loaded(settings, null).also { loaded = it }
         @Suppress("DEPRECATION")
         val info = context.packageManager.getPackageInfo("com.xiaomi.type", 0)
         val version = if (Build.VERSION.SDK_INT >= 28) info.longVersionCode else info.versionCode.toLong()
@@ -237,7 +243,7 @@ object Keyboard18Hook {
             runCatching {
                 val settings = app.contentResolver.call(Keyboard18ContentProvider.CONTENT_URI, "snapshot", null, null)
                     ?: return@runCatching
-                if (!settings.getBoolean(Keyboard18Store.ENABLED)) return@runCatching
+                if (!settings.getBoolean(Keyboard18Store.SHOW_IN_PICKER)) return@runCatching
                 val cause = generateSequence(failure) { it.cause }.last()
                 val message = "18键未接入：$stage；${cause.javaClass.simpleName}: ${cause.message.orEmpty()}".take(400)
                 app.contentResolver.call(Keyboard18ContentProvider.CONTENT_URI, "report", null, Bundle().apply {

@@ -88,6 +88,40 @@ public final class TargetCompatibilityProbe {
         String parser = (String) compat.getMethod("aiSafetyParserClassName", ClassLoader.class)
                 .invoke(singleton, target);
         if (generation.toString().equals("V21053")) {
+            Class<?> item = load(target, "z9.g6");
+            Class<?> callback = load(target, "bd.b");
+            method(callback, "g", Object.class, Object.class);
+            method(load(target, "z9.u7"), "a0", void.class, String.class, callback,
+                    load(target, "kotlin.jvm.functions.Function0"), java.util.Set.class,
+                    load(target, "s0.p"), int.class);
+            method(load(target, "oc.m"), "T0", java.util.ArrayList.class, Iterable.class, int.class);
+            method(load(target, "z9.c3"), "m", Object.class, Object.class, Object.class);
+            check(load(target, "gb.u0").getDeclaredField("b").getType()
+                    == load(target, "com.mi.ime.MiInputMethodService"), "picker callback service");
+            Object[] modes = new Object[4];
+            String[] ids = {"qwerty_chinese", "t9_chinese", "handwriting_chinese", "stroke_chinese"};
+            for (int index = 0; index < ids.length; index++) {
+                modes[index] = item.getConstructor(int.class, String.class, String.class)
+                        .newInstance(26, ids[index], ids[index]);
+            }
+            Class<?> picker = Class.forName("io.mo.xatype.keyboard.KeyboardPickerBridge");
+            Object bridge = picker.getConstructor(ClassLoader.class).newInstance(target);
+            Method extend = picker.getMethod("extend", Object[].class, boolean.class, boolean.class);
+            java.util.List<?> choices = (java.util.List<?>) extend.invoke(bridge, modes, true, true);
+            check(choices.size() == 6, "two independent keyboard choices");
+            check(item.getDeclaredField("a").get(choices.get(4)).equals("xatype_shape"), "shape picker id");
+            check(item.getDeclaredField("a").get(choices.get(5)).equals("xatype_keyboard18"), "18-key picker id");
+            check(item.getDeclaredField("b").get(choices.get(4)).equals("\u864e\u7801/\u4e94\u7b14"), "shape picker label");
+            check(((java.util.List<?>) extend.invoke(bridge, modes, false, false)).size() == 4,
+                    "both visibility switches off preserve native picker");
+            Class<?> preference = load(target, "androidx.preference.Preference");
+            method(preference, "D", void.class, String.class);
+            method(preference, "G", void.class, String.class);
+            method(load(target, "androidx.preference.PreferenceGroup"), "L", boolean.class, preference);
+            check(load(target, "miuix.preference.SingleChoicePreference").getConstructor(Context.class) != null,
+                    "native settings row constructor");
+            method(load(target, "qh.c"), "y", void.class, load(target, "dg.u"), String.class,
+                    java.util.Map.class, String.class, callback);
             Class<?> rect = load(target, "z9.c");
             Object savedTallRect = rect.getDeclaredConstructor(int.class, int.class, int.class, int.class)
                     .newInstance(0, -250, 50, 50);

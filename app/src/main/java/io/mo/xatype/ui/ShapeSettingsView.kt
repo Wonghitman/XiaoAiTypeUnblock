@@ -151,14 +151,14 @@ internal class ShapeSettingsView(context: Context, private val actions: Actions)
             visibility = GONE
         }
         hero.addView(metrics, spaced(top = LG, bottom = SM))
-        hero.addView(toggleRow("启用形码输入", "使用当前码表接管小爱拼音26键", ShapeStore.ENABLED, inset = false), spaced(top = SM))
+        hero.addView(toggleRow("在键盘选择中显示虎码/五笔", "显示入口后，在小爱键盘面板中选择使用", ShapeStore.SHOW_IN_PICKER, inset = false), spaced(top = SM))
         hero.addView(text("实验功能 · 适配小爱 0.2.1053", CAPTION, style.secondary), spaced(top = SM))
 
         body.addView(row().apply {
             background = style.surface(style.accentSurface)
             setPadding(style.dp(LG), style.dp(MD), style.dp(LG), style.dp(MD))
             addView(icon(R.drawable.ic_shape_keyboard, style.accent), LayoutParams(style.dp(ICON), style.dp(ICON)))
-            addView(text("在小爱中选择「拼音26键」，修改后重启生效。", CAPTION, style.accentText),
+            addView(text("重启应用设置后，在小爱「键盘选择」中选择「虎码/五笔」。可随时切回拼音或18键。", CAPTION, style.accentText),
                 LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = style.dp(MD) })
         }, spaced(top = LG))
 
@@ -229,10 +229,10 @@ internal class ShapeSettingsView(context: Context, private val actions: Actions)
         longest.text = if (hasDictionary) "${snapshot.getInt(ShapeStore.DICT_MAX)} 码" else "—"
         maxCode.text = "${snapshot.getInt(ShapeStore.MAX_CODE, 4)} 码"
         toggles.forEach { (key, toggle) ->
-            toggle.isChecked = snapshot.getBoolean(key, key != ShapeStore.ENABLED && key != ShapeStore.SORT_WEIGHT)
+            toggle.isChecked = snapshot.getBoolean(key, key != ShapeStore.SORT_WEIGHT)
         }
-        val enabled = snapshot.getBoolean(ShapeStore.ENABLED)
-        badge.text = if (enabled) "已开启" else "未开启"
+        val enabled = snapshot.getBoolean(ShapeStore.SHOW_IN_PICKER)
+        badge.text = if (enabled) "入口已显示" else "入口已隐藏"
         badge.setTextColor(if (enabled) style.accentText else style.secondary)
         badge.background = style.surface(if (enabled) style.accentSurface else style.background, SMALL_RADIUS)
         hostStatus.text = if (pendingRestart) "设置已保存，重启输入法后生效。" else
@@ -311,7 +311,7 @@ internal class ShapeSettingsView(context: Context, private val actions: Actions)
         }
         toggles[key] = toggle
         interactive.add(toggle)
-        dictionaryControls.add(toggle)
+        if (key != ShapeStore.SHOW_IN_PICKER) dictionaryControls.add(toggle)
         return row().apply {
             setPadding(if (inset) style.dp(LG) else 0, style.dp(MD), if (inset) style.dp(LG) else 0, style.dp(MD))
             background = style.ripple()

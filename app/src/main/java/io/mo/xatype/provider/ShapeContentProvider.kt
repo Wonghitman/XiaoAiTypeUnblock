@@ -27,6 +27,8 @@ class ShapeContentProvider : ContentProvider() {
         val ctx = checkNotNull(context)
         return when (method) {
             "snapshot" -> ShapeStore.snapshot(ctx)
+            "visibility" -> ShapeStore.pickerSnapshot(ctx)
+            "prepare" -> { ShapeStore.ensureBuiltin(ctx); ShapeStore.snapshot(ctx) }
             "report" -> {
                 val sp = ShapeStore.prefs(ctx)
                 // Ignore results from an engine still running the previous settings.

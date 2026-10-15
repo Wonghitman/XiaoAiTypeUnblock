@@ -11,6 +11,7 @@ import io.mo.xatype.shape.ShapeEngine
 import io.mo.xatype.shape.ShapeHostBridge
 import io.mo.xatype.shape.ShapeHostKeyAdapter
 import io.mo.xatype.shape.ShapeStore
+import io.mo.xatype.keyboard.KeyboardChoice
 import io.mo.xatype.util.XposedUtils
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -50,10 +51,11 @@ object ShapeInputHook {
         module.hook(factory).intercept { chain ->
             if (chain.getArg(0) !== bridge.pinyin) chain.proceed() else {
                 val context = contextField.get(chain.thisObject) as Context
+                if (KeyboardSelectionHook.selected(context) != KeyboardChoice.SHAPE) return@intercept chain.proceed()
                 val config = runCatching { load(context) }.onFailure {
                     XposedUtils.logError(module, "Shape dictionary unavailable; keeping original engine", it)
                 }.getOrNull()
-                if (config == null || !config.settings.getBoolean(ShapeStore.ENABLED)) chain.proceed()
+                if (config == null || !config.settings.getBoolean(ShapeStore.SHOW_IN_PICKER)) chain.proceed()
                 else if (version(context) != 21053L) {
                     report(context, config.settings, "未接入：此原型仅适配 0.2.1053；当前使用原拼音引擎")
                     chain.proceed()
@@ -77,8 +79,8 @@ object ShapeInputHook {
     @Synchronized
     private fun load(context: Context): Loaded? {
         loaded?.let { return it }
-        val settings = context.contentResolver.call(ShapeContentProvider.CONTENT_URI, "snapshot", null, null) ?: return null
-        if (!settings.getBoolean(ShapeStore.ENABLED)) return null
+        val settings = context.contentResolver.call(ShapeContentProvider.CONTENT_URI, "prepare", null, null) ?: return null
+        if (!settings.getBoolean(ShapeStore.SHOW_IN_PICKER)) return null
         val dictionary = checkNotNull(context.contentResolver.openInputStream(ShapeContentProvider.DICTIONARY_URI))
             .use(ShapeDictionaryCodec::read)
         // An import must not pair a new table with settings captured before the import.

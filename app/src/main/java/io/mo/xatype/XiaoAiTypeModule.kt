@@ -15,6 +15,7 @@ import io.mo.xatype.hooks.HyperOsVersionHook
 import io.mo.xatype.hooks.InputDiagnosticsHook
 import io.mo.xatype.hooks.ShapeInputHook
 import io.mo.xatype.hooks.Keyboard18Hook
+import io.mo.xatype.hooks.KeyboardSelectionHook
 import io.mo.xatype.hooks.KeyboardStyleHook
 import io.mo.xatype.hooks.KeyboardHeightUnblockHook
 import io.mo.xatype.hooks.KeyboardBottomSpacingHook
@@ -92,6 +93,12 @@ class XiaoAiTypeModule : XposedModule() {
         // com.miui.phrase owns persistence. The remaining hooks target only the
         // Xiaomi input method process.
         if (param.packageName == PHRASE_PACKAGE) return
+
+        try {
+            KeyboardSelectionHook.install(this, classLoader)
+        } catch (t: Throwable) {
+            XposedUtils.logError(this, "Independent keyboard picker unavailable for this host ABI", t)
+        }
 
         try {
             ShapeInputHook.install(this, classLoader)

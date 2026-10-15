@@ -11,7 +11,8 @@ import java.util.zip.GZIPInputStream
 /** Module-owned device-protected data, so the keyboard also works before first unlock. */
 object ShapeStore {
     const val PREFS = "shape_input"
-    const val ENABLED = "enabled"
+    const val ENABLED = "enabled" // Legacy migration only; selection belongs to the host picker.
+    const val SHOW_IN_PICKER = "show_in_picker"
     const val MAX_CODE = "max_code_length"
     const val AUTO_COMMIT = "auto_commit_unique"
     const val OVERFLOW = "commit_on_overflow"
@@ -29,6 +30,12 @@ object ShapeStore {
     private fun deviceContext(context: Context): Context = context.createDeviceProtectedStorageContext()
     fun prefs(context: Context): SharedPreferences = deviceContext(context).getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     private fun atomic(context: Context) = AtomicFile(File(deviceContext(context).filesDir, "shape-dictionary.xts"))
+
+    /** Picker visibility must remain readable even if a user-imported table is damaged. */
+    fun pickerSnapshot(context: Context): Bundle = prefs(context).let { sp -> Bundle().apply {
+        putBoolean(ENABLED, sp.getBoolean(ENABLED, false))
+        putBoolean(SHOW_IN_PICKER, sp.getBoolean(SHOW_IN_PICKER, sp.getBoolean(ENABLED, true)))
+    } }
 
     @Synchronized
     fun ensureBuiltin(context: Context): ShapeDictionaryCodec.Header {
@@ -70,8 +77,7 @@ object ShapeStore {
     @Synchronized
     fun snapshot(context: Context): Bundle {
         val sp = prefs(context)
-        val bundle = Bundle().apply {
-            putBoolean(ENABLED, sp.getBoolean(ENABLED, false))
+        val bundle = pickerSnapshot(context).apply {
             putInt(MAX_CODE, sp.getInt(MAX_CODE, 4).coerceIn(1, 8))
             putBoolean(AUTO_COMMIT, sp.getBoolean(AUTO_COMMIT, true))
             putBoolean(OVERFLOW, sp.getBoolean(OVERFLOW, true))
@@ -95,6 +101,7 @@ object ShapeStore {
 
     @Synchronized
     fun openReadOnly(context: Context): android.os.ParcelFileDescriptor {
+        ensureBuiltin(context)
         val file = atomic(context)
         // Let AtomicFile finish recovery before handing the stable inode to the host.
         file.openRead().close()
@@ -109,7 +116,6 @@ object ShapeStore {
     )
 
     fun saveBoolean(context: Context, key: String, value: Boolean) {
-        if (key == ENABLED && value) io.mo.xatype.keyboard18.Keyboard18Store.setEnabled(context, false)
         val sp = prefs(context)
         check(sp.edit().putBoolean(key, value).putLong(REVISION, sp.getLong(REVISION, 0) + 1)
             .remove(STATUS).remove(STATUS_TIME).commit())

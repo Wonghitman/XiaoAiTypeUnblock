@@ -80,20 +80,20 @@ class Keyboard18Activity : AppCompatActivity() {
             ShapeUiStyle.BODY, secondary = true), spaced())
         val settings = card()
         enabled = SwitchCompat(this).apply {
-            text = "在小爱中启用18键"
+            text = "在键盘选择中显示18键"
             textSize = ShapeUiStyle.HEADING
             setTextColor(style.primary)
             minHeight = style.dp(ShapeUiStyle.BUTTON)
-            isChecked = Keyboard18Store.prefs(this@Keyboard18Activity).getBoolean(Keyboard18Store.ENABLED, false)
+            isChecked = Keyboard18Store.snapshot(this@Keyboard18Activity).getBoolean(Keyboard18Store.SHOW_IN_PICKER)
             setOnCheckedChangeListener { _, checked ->
-                runCatching { Keyboard18Store.setEnabled(this@Keyboard18Activity, checked) }
+                runCatching { Keyboard18Store.setVisible(this@Keyboard18Activity, checked) }
                     .onSuccess { pendingRestart = true; performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY); updateStatus() }
                     .onFailure { Toast.makeText(this@Keyboard18Activity, it.message, Toast.LENGTH_LONG).show()
                         setOnCheckedChangeListener(null); isChecked = !checked; recreate() }
             }
         }
         settings.addView(enabled, LinearLayout.LayoutParams(-1, -2))
-        settings.addView(text("启用后重启输入法，并在小爱中选择「拼音26键」。18键与虎码/五笔互斥；词库和输入均在本地。",
+        settings.addView(text("重启应用设置后，在小爱「键盘选择」中选择「18键」。可直接切换拼音26键、虎码/五笔；此开关只控制入口显示。词库和输入均在本地。",
             ShapeUiStyle.CAPTION, secondary = true), spaced())
         status = text("", ShapeUiStyle.CAPTION, secondary = true)
         settings.addView(status, spaced())
