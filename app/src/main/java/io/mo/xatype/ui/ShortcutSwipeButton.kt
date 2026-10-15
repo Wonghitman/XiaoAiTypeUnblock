@@ -31,6 +31,7 @@ internal class ShortcutSwipeButton(context: Context) : AppCompatButton(context) 
             gesture = if (shortcut != null && shortcutsEnabled()) ShortcutSwipeGesture() else null
             startX = event.x; startY = event.y; haptic = false
             heldAction = null
+            if (gesture != null) parent?.requestDisallowInterceptTouchEvent(true)
         }
         val current = gesture ?: return super.onTouchEvent(event)
         if (event.pointerCount != 1 || !shortcutsEnabled() || event.actionMasked == MotionEvent.ACTION_CANCEL) {
