@@ -194,7 +194,7 @@ object Keyboard18Hook {
             }.getOrNull()
             val english = chain.getArg(3) == true
             if (config?.dictionary == null || (!english && (!chineseReady || layoutMode != "PINYIN"))) original else runCatching {
-                layouts.rebuild(original, english, ConfigManager.isKeyboardShortcutsEnabled()).also { rebuilt ->
+                layouts.rebuild(original, english).also { rebuilt ->
                     if (!layoutReported) {
                         layoutReported = true
                         report(context, config.settings, if (rebuilt !== original)

@@ -1,4 +1,4 @@
-"""Verify letter shortcut popup, layout and callback ABI against decoded host 21053 DEX."""
+"""Verify swipe shortcut rendering, coordinates, draw state and release callbacks in host 21053 DEX."""
 import argparse
 from pathlib import Path
 
@@ -42,6 +42,22 @@ required = {
              "Ljava/lang/String;->charAt(I)C"],
     "y7/v": [".method public final J()V", "Lab/y1;->e()V", "Ly7/p;->h(ILcom/mi/ime/MiInputMethodService;Z)V"],
     "ed/a": [".method public static final p(Lab/b1;)Z", "Lab/b1;->M()I", "Lab/b1;->b(I)V"],
+    "d2/w": [".method public final dispatchTouchEvent(Landroid/view/MotionEvent;)Z"],
+    "d2/u0": [".field public static final f:Ls0/i2;"],
+    "s0/p": [".method public final l(Ls0/i1;)Ljava/lang/Object;"],
+    "s0/d": [".method public static final R(Ljava/lang/Object;Ls0/c2;)Ls0/c1;"],
+    "s0/o0": [".field public static final f:Ls0/o0;"],
+    "s0/v0": [".method public abstract setValue(Ljava/lang/Object;)V"],
+    "s0/h2": [".method public abstract getValue()Ljava/lang/Object;"],
+    "nc/m": [".field public static final a:Lnc/m;"],
+    "androidx/compose/ui/layout/a": [".method public static final b(Le1/o;Lbd/b;)Le1/o;"],
+    "androidx/compose/ui/draw/a": [".method public static final c(Le1/o;Lbd/b;)Le1/o;"],
+    "a2/o": [".method public abstract i()Z", ".method public abstract v(J)J", ".method public abstract l()J"],
+    "c2/f0": [".method public final a()V", ".method public final S()Lw5/i;", ".method public final c()J"],
+    "w5/i": [".method public s()Ll1/q;"],
+    "l1/b": [".field public a:Landroid/graphics/Canvas;"],
+    "l1/h0": [".method public static final v(J)I"],
+    "p0/n": [".method public static final a(Ljava/lang/String;Le1/o;JJLq2/k;Lq2/e;JLw2/g;JIZIILbd/b;Ll2/h0;Ls0/p;III)V"],
 }
 
 for name, tokens in required.items():
@@ -49,4 +65,8 @@ for name, tokens in required.items():
     for token in tokens:
         assert token in text, (name, token)
 
-print(f"PASS: letter shortcut popup, native layout and candidate callbacks ({len(required)} classes)")
+import re
+renderer = re.search(r"(?m)^\.method public static final a\((Lka/c;.*?)\)V$", source("z9/w5")).group(1)
+assert len(re.findall(r"L[^;]+;|[ZBCSIJFD]", renderer)) == 30
+assert "Lp0/n;->a(Ljava/lang/String;Le1/o;" in source("z9/w5")
+print(f"PASS: swipe shortcut draw, coordinates, state and release callbacks ({len(required)} classes)")

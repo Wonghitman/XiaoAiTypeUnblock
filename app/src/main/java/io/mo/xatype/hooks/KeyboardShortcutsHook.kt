@@ -58,13 +58,7 @@ object KeyboardShortcutsHook {
                 }.getOrDefault(false)
                 if (supported == true) ConfigManager.syncFromProvider(ime)
             }
-            val original = chain.proceed() ?: return@intercept null
-            if (supported != true || !ConfigManager.isKeyboardShortcutsEnabled() ||
-                KeyboardSelectionHook.selected(ime) != KeyboardChoice.PINYIN ||
-                (chain.getArg(3) != true && layoutMode != "PINYIN" && layoutMode != "ENGLISH")) original
-            else runCatching { layouts.addTo(original) }.onFailure {
-                XposedUtils.logError(module, "Letter shortcut popup unavailable; retaining native layout", it)
-            }.getOrDefault(original)
+            chain.proceed()
         }
         module.deoptimize(factory)
         module.hook(handler).intercept { chain ->
@@ -89,6 +83,13 @@ object KeyboardShortcutsHook {
             null
         }
         module.deoptimize(handler)
-        XposedUtils.log(module, "Independent letter shortcut hooks installed (host 21053)")
+        ShortcutSwipeHostHook(enabled = {
+            supported == true && ConfigManager.isKeyboardShortcutsEnabled() &&
+                layoutMode in setOf("PINYIN", "ENGLISH") && service?.let {
+                    KeyboardSelectionHook.selected(it) in setOf(KeyboardChoice.PINYIN, KeyboardChoice.KEYBOARD18)
+                } == true
+        }, keyboard18 = { service?.let { KeyboardSelectionHook.selected(it) == KeyboardChoice.KEYBOARD18 } == true })
+            .install(module, loader)
+        XposedUtils.log(module, "Independent downward swipe shortcut hooks installed (host 21053)")
     }
 }

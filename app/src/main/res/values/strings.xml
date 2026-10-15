@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">超级小爱输入法净化</string>
     <string name="module_description">解除超级小爱输入法的内容风控、版本限制与系统剪贴板保存限制</string>
-    <string name="keyboard_shortcuts_title">字母长按快捷操作</string>
-    <string name="keyboard_shortcuts_description">适用于 18 键与拼音/英文 26 键；长按底排字母，在弹出菜单中选择全选、复制、粘贴、段首或段尾。26 键对应 Z/C/V/B/M。支持小爱 0.2.1053，重启输入法生效。</string>
+    <string name="keyboard_shortcuts_title">字母下滑快捷操作</string>
+    <string name="keyboard_shortcuts_description">适用于 18 键与拼音/英文 26 键。按住 Z/C/V/B/M（18 键为 Z/XC/V/BN/M）向下滑，字母随距离渐变为全选、复制、粘贴、段首、段尾图标；轻震后松手执行，往回滑可取消。支持小爱 0.2.1053，重启输入法生效。</string>
 </resources>

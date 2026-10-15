@@ -78,7 +78,7 @@ class Keyboard18Activity : AppCompatActivity() {
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
 
         body.addView(text("更宽的按键，更轻松地输入", ShapeUiStyle.TITLE, strong = true))
-        body.addView(text("按图片的 7 · 6 · 5 布局。中文点按分组键；长按可选择准确字母、数字及快捷操作。",
+        body.addView(text("按图片的 7 · 6 · 5 布局。中文点按分组键，长按选择准确字母和数字；开启首页「字母下滑快捷操作」后，底排字母下滑渐变为功能图标，轻震后松手执行。",
             ShapeUiStyle.BODY, secondary = true), spaced())
         val settings = card()
         enabled = SwitchCompat(this).apply {
@@ -134,8 +134,14 @@ class Keyboard18Activity : AppCompatActivity() {
                     if (english || uppercase) { flush(); insert(if (uppercase) group.first().uppercaseChar().toString() else group.first().toString()) }
                     else showResult(decoder.input(Keyboard18Keys.code(group).toChar()))
                 }
-                button.contentDescription = "${group.uppercase()}键，长按选择字母和符号；快捷操作由首页独立开关控制"
-                button.setOnLongClickListener { popup(group); true }
+                button.contentDescription = "${group.uppercase()}键，长按选择字母和符号；下滑快捷操作由首页开关控制"
+                (button as ShortcutSwipeButton).apply {
+                    shortcut = KeyboardShortcuts.groups18[group]
+                    shortcutsEnabled = { ConfigManager.getLocalPrefs(this@Keyboard18Activity)
+                        .getBoolean(ConfigManager.KEY_KEYBOARD_SHORTCUTS, false) }
+                    executeShortcut = { this@Keyboard18Activity.shortcut(it) }
+                }
+                button.chooseOnLongPress { popup(group) }
                 letterButtons[group] = button
                 row.addView(button, keyParams(Keyboard18Style.weight(group)))
             }
@@ -255,21 +261,20 @@ class Keyboard18Activity : AppCompatActivity() {
     private fun popup(group: String) {
         val hint = Keyboard18Keys.hints[Keyboard18Keys.groups.indexOf(group)]
         val values = group.map { if (uppercase) it.uppercaseChar().toString() else it.toString() } +
-            listOf(hint).filter { it.length == 1 } + listOfNotNull(KeyboardShortcuts.groups18[group].takeIf {
-                ConfigManager.getLocalPrefs(this).getBoolean(ConfigManager.KEY_KEYBOARD_SHORTCUTS, false)
-            })
+            listOf(hint).filter { it.length == 1 }
         choices("${group.uppercase()}键", values) { selected ->
-            when (selected) {
-                "全选" -> { flush(); output.selectAll() }
-                "复制" -> output.onTextContextMenuItem(android.R.id.copy)
-                "粘贴" -> { flush(); output.onTextContextMenuItem(android.R.id.paste) }
-                "段首", "段尾" -> {
-                    flush(); val text = output.text.toString(); val caret = output.selectionStart.coerceAtLeast(0)
-                    output.setSelection(KeyboardShortcuts.paragraphPosition(text, caret, 0, selected == "段尾"))
-                }
-                else -> if (!english && !uppercase && selected.length == 1 && selected[0] in 'a'..'z')
-                    engine?.input(selected.single())?.let(::showResult) else literal(selected)
-            }
+            if (!english && !uppercase && selected.length == 1 && selected[0] in 'a'..'z')
+                engine?.input(selected.single())?.let(::showResult) else literal(selected)
+        }
+    }
+    private fun shortcut(action: String) {
+        flush()
+        when (action) {
+            "全选" -> output.selectAll()
+            "复制" -> output.onTextContextMenuItem(android.R.id.copy)
+            "粘贴" -> output.onTextContextMenuItem(android.R.id.paste)
+            "段首", "段尾" -> output.setSelection(KeyboardShortcuts.paragraphPosition(output.text,
+                output.selectionStart.coerceAtLeast(0), 0, action == "段尾"))
         }
     }
     private fun symbols() = choices("符号", listOf("，", "。", "！", "？", "、", "：", "；", "'", "(", ")", "@", "#", "/", "-", "_", "=", "+", "%", "￥")) {
@@ -287,7 +292,7 @@ class Keyboard18Activity : AppCompatActivity() {
         text = value; textSize = size; setTextColor(if (secondary) style.secondary else style.primary)
         if (strong) setTypeface(typeface, Typeface.BOLD)
     }
-    private fun button(label: String, accent: Boolean = false, action: () -> Unit) = AppCompatButton(this).apply {
+    private fun button(label: String, accent: Boolean = false, target: AppCompatButton = AppCompatButton(this), action: () -> Unit) = target.apply {
         text = label; isAllCaps = false; textSize = ShapeUiStyle.BODY
         setTextColor(if (accent) style.onAccent else style.primary)
         background = style.ripple(if (accent) style.accent else style.surface, ShapeUiStyle.SMALL_RADIUS)
@@ -295,7 +300,7 @@ class Keyboard18Activity : AppCompatActivity() {
         setPadding(style.dp(ShapeUiStyle.SM), style.dp(ShapeUiStyle.SM), style.dp(ShapeUiStyle.SM), style.dp(ShapeUiStyle.SM))
         setOnClickListener { performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY); action() }
     }
-    private fun keyButton(label: String, accent: Boolean = false, action: () -> Unit) = button(label, accent, action).apply {
+    private fun keyButton(label: String, accent: Boolean = false, action: () -> Unit) = button(label, accent, ShortcutSwipeButton(this), action).apply {
         minWidth = 0; minimumWidth = 0; textSize = Keyboard18Style.PREVIEW_TEXT_SIZE
         includeFontPadding = false; gravity = Gravity.CENTER
         background = style.ripple(if (accent) style.accent else style.background, Keyboard18Style.PREVIEW_RADIUS)
