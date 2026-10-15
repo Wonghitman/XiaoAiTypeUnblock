@@ -419,7 +419,21 @@ class MainActivity : AppCompatActivity() {
             return "输入法或模块已更新，重启输入法后重新适配" to false
         }
 
-        val reports = listOfNotNull(ime, report(AdaptationStatus.PHRASE_PACKAGE))
+        val phrase = report(AdaptationStatus.PHRASE_PACKAGE)
+        val phraseVersion = runCatching {
+            @Suppress("DEPRECATION")
+            val info = packageManager.getPackageInfo(AdaptationStatus.PHRASE_PACKAGE, 0)
+            @Suppress("DEPRECATION")
+            if (Build.VERSION.SDK_INT >= 28) info.longVersionCode else info.versionCode.toLong()
+        }.getOrNull()
+        if (phraseVersion != null) {
+            if (phrase == null) return "输入法已运行，剪贴板适配状态尚未上报" to false
+            if (phrase.optLong(AdaptationStatus.EXTRA_VERSION_CODE) != phraseVersion ||
+                phrase.optString(AdaptationStatus.EXTRA_MODULE_STAMP) != stamp) {
+                return "剪贴板或模块已更新，重启输入法后重新适配" to false
+            }
+        }
+        val reports = listOfNotNull(ime, phrase.takeIf { phraseVersion != null })
         if (reports.any { it.optString(AdaptationStatus.EXTRA_SOURCE) == "UNAVAILABLE" }) {
             return "自适配未能运行，已回退到内置适配" to false
         }
@@ -428,9 +442,9 @@ class MainActivity : AppCompatActivity() {
             List(keys.length()) { keys.getString(it) }
         }
         return if (missing.isEmpty()) {
-            "全部功能已定位，可正常使用" to true
+            "已完成自动适配，功能按各自开关启用" to true
         } else {
-            "未生效：" + AdaptationStatus.featureNames(missing).joinToString("、") to false
+            "尚未适配或安装失败：" + AdaptationStatus.featureNames(missing).joinToString("、") to false
         }
     }
 

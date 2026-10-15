@@ -3,10 +3,10 @@ package io.mo.xatype.compat
 import android.os.Parcel
 import android.view.View
 import android.widget.FrameLayout
+import java.lang.reflect.Modifier
 import org.luckypray.dexkit.DexKitBridge
 import org.luckypray.dexkit.query.enums.StringMatchType
 import org.luckypray.dexkit.result.MethodData
-import java.lang.reflect.Modifier
 
 /**
  * Resolves every member of [ModernKeyboardProfile]. Anchors were checked on
@@ -21,7 +21,8 @@ internal object ModernKeyboardFingerprint {
 
     fun resolve(bridge: DexKitBridge, loader: ClassLoader): ModernKeyboardProfile {
         val service = Class.forName(SERVICE, false, loader)
-        val helper = service.getDeclaredField("hyperMaterialHelper").type
+        val helper = runCatching { service.getDeclaredField("hyperMaterialHelper").type }.getOrNull()
+            ?: throw FingerprintMiss("Modern material helper unavailable")
         val helperData = checkNotNull(bridge.getClassData(helper)) { "helper class data" }
         val helperMethods = helperData.methods
         fun helperMethod(what: String, filter: (MethodData) -> Boolean) =

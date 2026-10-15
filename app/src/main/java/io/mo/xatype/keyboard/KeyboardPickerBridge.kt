@@ -1,11 +1,15 @@
 package io.mo.xatype.keyboard
 
+import io.mo.xatype.compat.HostSymbols
+import io.mo.xatype.compat.KeyboardAbi
+import io.mo.xatype.compat.abiField
+
 /** Reflection only; also exercised against host-shaped fixtures on the desktop. */
-class KeyboardPickerBridge(loader: ClassLoader) {
-    private val item = Class.forName("z9.g6", false, loader)
+class KeyboardPickerBridge(loader: ClassLoader, private val abi: KeyboardAbi = KeyboardAbi.require(loader, HostSymbols.KEYBOARD_PICKER)) {
+    private val item = abi.type("z9.g6")
     private val constructor = item.getConstructor(Int::class.javaPrimitiveType, String::class.java, String::class.java)
-    private val id = item.getDeclaredField("a").apply { isAccessible = true }
-    private val icon = item.getDeclaredField("c").apply { isAccessible = true }
+    private val id = item.abiField(abi, "a").apply { isAccessible = true }
+    private val icon = item.abiField(abi, "c").apply { isAccessible = true }
     private val nativeIds = setOf("qwerty_chinese", "t9_chinese", "handwriting_chinese", "stroke_chinese")
 
     fun extend(values: Array<*>, showShape: Boolean, show18: Boolean): List<Any>? {

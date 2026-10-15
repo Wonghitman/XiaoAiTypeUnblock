@@ -3,40 +3,44 @@ package io.mo.xatype.keyboard
 import android.graphics.Canvas
 import android.graphics.RectF
 import android.view.View
-import java.lang.reflect.Proxy
+import io.mo.xatype.compat.HostSymbols
+import io.mo.xatype.compat.KeyboardAbi
+import io.mo.xatype.compat.abiField
+import io.mo.xatype.compat.abiMethod
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
+import java.lang.reflect.Proxy
 import kotlin.math.max
 
-/** The verified 21053 Compose ABI. No Compose runtime is bundled with the module. */
-class ShortcutSwipeHostBridge(private val loader: ClassLoader) {
-    private fun type(name: String) = Class.forName(name, false, loader)
-    private val keys = KeyboardShortcutHostLayout(loader)
+/** The resolved Compose ABI. No Compose runtime is bundled with the module. */
+class ShortcutSwipeHostBridge(private val loader: ClassLoader, private val abi: KeyboardAbi = KeyboardAbi.require(loader, HostSymbols.KEYBOARD_SWIPE)) {
+    private fun type(name: String) = abi.type(name)
+    private val keys = KeyboardShortcutHostLayout(loader, abi)
     val key = keys.key
     val modifier = type("e1.o")
     val callback = type("bd.b")
-    private val invoke = callback.getMethod("g", Any::class.java)
-    private val unit = type("nc.m").getDeclaredField("a").get(null)
+    private val invoke = callback.abiMethod(abi, "g", Any::class.java)
+    private val unit = type("nc.m").abiField(abi, "a").get(null)
     private val state = type("s0.v0")
-    private val getValue = type("s0.h2").getMethod("getValue")
-    private val setValue = state.getMethod("setValue", Any::class.java)
-    private val policy = type("s0.o0").getDeclaredField("f").get(null)
-    private val stateFactory = type("s0.d").getDeclaredMethod("R", Any::class.java, type("s0.c2"))
-    private val position = type("androidx.compose.ui.layout.a").getDeclaredMethod("b", modifier, callback)
-    private val drawing = type("androidx.compose.ui.draw.a").getDeclaredMethod("c", modifier, callback)
-    private val localView = type("d2.u0").getDeclaredField("f").get(null)
-    private val readLocal = type("s0.p").getDeclaredMethod("l", type("s0.i1"))
+    private val getValue = type("s0.h2").abiMethod(abi, "getValue")
+    private val setValue = state.abiMethod(abi, "setValue", Any::class.java)
+    private val policy = type("s0.o0").abiField(abi, "f").get(null)
+    private val stateFactory = type("s0.d").abiMethod(abi, "R", Any::class.java, type("s0.c2"))
+    private val position = type("androidx.compose.ui.layout.a").abiMethod(abi, "b", modifier, callback)
+    private val drawing = type("androidx.compose.ui.draw.a").abiMethod(abi, "c", modifier, callback)
+    private val localView = type("d2.u0").abiField(abi, "f").get(null)
+    private val readLocal = type("s0.p").abiMethod(abi, "l", type("s0.i1"))
     private val coordinates = type("a2.o")
-    private val attached = coordinates.getMethod("i")
-    private val toScreen = coordinates.getMethod("v", Long::class.javaPrimitiveType)
-    private val coordinateSize = coordinates.getMethod("l")
+    private val attached = coordinates.abiMethod(abi, "i")
+    private val toScreen = coordinates.abiMethod(abi, "v", Long::class.javaPrimitiveType)
+    private val coordinateSize = coordinates.abiMethod(abi, "l")
     private val scope = type("c2.f0")
-    private val content = scope.getMethod("a")
-    private val drawSize = scope.getMethod("c")
-    private val context = scope.getMethod("S")
-    private val canvasGetter = context.returnType.getMethod("s")
-    private val nativeCanvas = type("l1.b").getDeclaredField("a").apply { isAccessible = true }
-    private val argb = type("l1.h0").getDeclaredMethod("v", Long::class.javaPrimitiveType)
+    private val content = scope.abiMethod(abi, "a")
+    private val drawSize = scope.abiMethod(abi, "c")
+    private val context = scope.abiMethod(abi, "S")
+    private val canvasGetter = context.returnType.abiMethod(abi, "s")
+    private val nativeCanvas = type("l1.b").abiField(abi, "a").apply { isAccessible = true }
+    private val argb = type("l1.h0").abiMethod(abi, "v", Long::class.javaPrimitiveType)
 
     fun label(instance: Any) = keys.label(instance)
     fun action(instance: Any, keyboard18: Boolean) = keys.action(instance, keyboard18)
@@ -50,7 +54,7 @@ class ShortcutSwipeHostBridge(private val loader: ClassLoader) {
     fun drawContent(value: Any) { content.invoke(value) }
 
     private fun function(block: (Any) -> Unit): Any = Proxy.newProxyInstance(loader, arrayOf(callback)) { proxy, method, args ->
-        when (method.name) {
+        when (abi.canonical(method)) {
             "g" -> { block(args!![0]!!); unit }
             "equals" -> proxy === args?.get(0)
             "hashCode" -> System.identityHashCode(proxy)
@@ -59,7 +63,7 @@ class ShortcutSwipeHostBridge(private val loader: ClassLoader) {
         }
     }
     private inner class Guard(val original: Any, val blocked: () -> Boolean) : InvocationHandler {
-        override fun invoke(proxy: Any, method: Method, args: Array<out Any?>?): Any? = when (method.name) {
+        override fun invoke(proxy: Any, method: Method, args: Array<out Any?>?): Any? = when (abi.canonical(method)) {
             "g" -> if (blocked()) unit else this@ShortcutSwipeHostBridge.invoke.invoke(original, args!![0])
             "equals" -> proxy === args?.get(0)
             "hashCode" -> System.identityHashCode(proxy)

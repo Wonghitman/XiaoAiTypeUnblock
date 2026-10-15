@@ -1,8 +1,11 @@
 package io.mo.xatype.hooks
 
 import android.content.Context
-import android.os.Build
 import io.github.libxposed.api.XposedInterface
+import io.mo.xatype.compat.HostSymbols
+import io.mo.xatype.compat.KeyboardAbi
+import io.mo.xatype.compat.abiField
+import io.mo.xatype.compat.abiMethod
 import io.mo.xatype.keyboard.KeyboardChoice
 import io.mo.xatype.keyboard.KeyboardPickerBridge
 import io.mo.xatype.keyboard18.Keyboard18Store
@@ -26,14 +29,12 @@ object KeyboardSelectionHook {
     @Synchronized
     private fun visibility(ctx: Context): Visibility {
         visibility?.let { return it }
-        @Suppress("DEPRECATION")
-        val info = ctx.packageManager.getPackageInfo("com.xiaomi.type", 0)
-        @Suppress("DEPRECATION")
-        val version = if (Build.VERSION.SDK_INT >= 28) info.longVersionCode else info.versionCode.toLong()
-        check(version == 21053L) { "独立键盘选择仅适配小爱0.2.1053" }
         val shape = checkNotNull(ctx.contentResolver.call(ShapeContentProvider.CONTENT_URI, "visibility", null, null))
         val keyboard18 = checkNotNull(ctx.contentResolver.call(Keyboard18ContentProvider.CONTENT_URI, "snapshot", null, null))
-        return Visibility(shape.getBoolean(ShapeStore.SHOW_IN_PICKER), keyboard18.getBoolean(Keyboard18Store.SHOW_IN_PICKER),
+        val engineReady = HostSymbols.has(HostSymbols.KEYBOARD_ENGINE) && HostSymbols.KEYBOARD_ENGINE !in HostSymbols.missing
+        val layoutReady = HostSymbols.has(HostSymbols.KEYBOARD_LAYOUT) && HostSymbols.KEYBOARD_LAYOUT !in HostSymbols.missing
+        return Visibility(shape.getBoolean(ShapeStore.SHOW_IN_PICKER) && engineReady,
+            keyboard18.getBoolean(Keyboard18Store.SHOW_IN_PICKER) && engineReady && layoutReady,
             shape.getBoolean(ShapeStore.ENABLED), keyboard18.getBoolean(Keyboard18Store.ENABLED)).also { visibility = it }
     }
 
@@ -52,16 +53,17 @@ object KeyboardSelectionHook {
     }
 
     fun install(module: XposedInterface, loader: ClassLoader) {
-        val picker = KeyboardPickerBridge(loader)
-        val callback = Class.forName("bd.b", false, loader)
-        val invoke = callback.getMethod("g", Any::class.java)
-        val compose = Class.forName("s0.p", false, loader)
-        val screen = Class.forName("z9.u7", false, loader).getDeclaredMethod("a0", String::class.java,
-            callback, Class.forName("kotlin.jvm.functions.Function0", false, loader), Set::class.java,
+        val abi = KeyboardAbi.require(loader, HostSymbols.KEYBOARD_PICKER)
+        val picker = KeyboardPickerBridge(loader, abi)
+        val callback = abi.type("bd.b")
+        val invoke = callback.abiMethod(abi, "g", Any::class.java)
+        val compose = abi.type("s0.p")
+        val screen = abi.type("z9.u7").abiMethod(abi, "a0", String::class.java,
+            callback, abi.type("kotlin.jvm.functions.Function0"), Set::class.java,
             compose, Int::class.javaPrimitiveType)
-        val rows = Class.forName("oc.m", false, loader).getDeclaredMethod("T0", Iterable::class.java, Int::class.javaPrimitiveType)
-        val hostCallback = Class.forName("gb.u0", false, loader)
-        val hostService = Class.forName("com.mi.ime.MiInputMethodService", false, loader)
+        val rows = abi.type("oc.m").abiMethod(abi, "T0", Iterable::class.java, Int::class.javaPrimitiveType)
+        val hostCallback = abi.type("gb.u0")
+        val hostService = abi.type("com.mi.ime.MiInputMethodService")
         val serviceField = hostCallback.declaredFields.single { it.type == hostService }.apply { isAccessible = true }
 
         // Add mode items at the selector's row grouping boundary. Avoid hooking listOf,
@@ -78,7 +80,7 @@ object KeyboardSelectionHook {
         }
         module.deoptimize(rows)
         // ART may have inlined row grouping into this composable before hook installation.
-        module.deoptimize(Class.forName("z9.c3", false, loader).getDeclaredMethod("m", Any::class.java, Any::class.java))
+        module.deoptimize(abi.type("z9.c3").abiMethod(abi, "m", Any::class.java, Any::class.java))
         module.hook(screen).intercept { chain ->
             val original = chain.getArg(1)!!
             val previous = if (Proxy.isProxyClass(original.javaClass)) Proxy.getInvocationHandler(original) as? SelectionCallback else null
@@ -103,34 +105,36 @@ object KeyboardSelectionHook {
         module.deoptimize(screen)
         ready = true
         runCatching { installSettings(module, loader, callback) }.onFailure {
+            HostSymbols.markUnavailable(HostSymbols.KEYBOARD_SETTINGS, it)
             XposedUtils.logError(module, "Native keyboard settings entries unavailable; keyboard panel remains available", it)
         }
-        XposedUtils.log(module, "Independent keyboard picker ready (host 21053)")
+        XposedUtils.log(module, "Independent keyboard picker ready (resolved ABI)")
     }
 
     /** The native Settings > Keyboard type page uses preferences rather than Compose. */
     private fun installSettings(module: XposedInterface, loader: ClassLoader, callback: Class<*>) {
-        val fragment = Class.forName("db.l", false, loader)
-        val base = Class.forName("dg.u", false, loader)
-        val preference = Class.forName("androidx.preference.Preference", false, loader)
-        val single = Class.forName("miuix.preference.SingleChoicePreference", false, loader)
-        val group = Class.forName("androidx.preference.PreferenceGroup", false, loader)
+        val abi = KeyboardAbi.require(loader, HostSymbols.KEYBOARD_SETTINGS)
+        val fragment = abi.type("db.l")
+        val base = abi.type("dg.u")
+        val preference = abi.type("androidx.preference.Preference")
+        val single = abi.type("miuix.preference.SingleChoicePreference")
+        val group = abi.type("androidx.preference.PreferenceGroup")
         val constructor = single.getConstructor(Context::class.java)
-        val find = fragment.getMethod("f", String::class.java)
-        val requireContext = fragment.getMethod("requireContext")
-        val setKey = preference.getMethod("D", String::class.java)
-        val setTitle = preference.getMethod("G", String::class.java)
-        val value = single.getDeclaredField("n0").apply { isAccessible = true }
-        val add = group.getMethod("L", preference)
-        val icon = preference.getDeclaredField("j").apply { isAccessible = true }
-        val bind = Class.forName("qh.c", false, loader).getDeclaredMethod("y", base, String::class.java,
+        val find = fragment.abiMethod(abi, "f", String::class.java)
+        val requireContext = fragment.abiMethod(abi, "requireContext")
+        val setKey = preference.abiMethod(abi, "D", String::class.java)
+        val setTitle = preference.abiMethod(abi, "G", String::class.java)
+        val value = single.abiField(abi, "n0").apply { isAccessible = true }
+        val add = group.abiMethod(abi, "L", preference)
+        val icon = preference.abiField(abi, "j").apply { isAccessible = true }
+        val bind = abi.type("qh.c").abiMethod(abi, "y", base, String::class.java,
             Map::class.java, String::class.java, callback)
-        val invoke = callback.getMethod("g", Any::class.java)
-        val service = Class.forName("com.mi.ime.MiInputMethodService", false, loader)
-        val instance = service.getDeclaredField("instance").apply { isAccessible = true }
-        val engineReady = service.getDeclaredMethod("isEngineManagerReady\$app_iflytekFullRelease")
-        val engineType = Class.forName("z8.g", false, loader)
-        val switch = service.getDeclaredMethod("switchEngine\$app_iflytekFullRelease", engineType)
+        val invoke = callback.abiMethod(abi, "g", Any::class.java)
+        val service = abi.type("com.mi.ime.MiInputMethodService")
+        val instance = service.abiField(abi, "instance").apply { isAccessible = true }
+        val engineReady = service.abiMethod(abi, "isEngineManagerReady\$app_iflytekFullRelease")
+        val engineType = abi.type("z8.g")
+        val switch = service.abiMethod(abi, "switchEngine\$app_iflytekFullRelease", engineType)
         module.hook(bind).intercept { chain ->
             val page = chain.getArg(0)!!
             if (!fragment.isInstance(page) || chain.getArg(1) != "keyboard_type_group") chain.proceed() else {
@@ -178,13 +182,14 @@ object KeyboardSelectionHook {
             }
         }
         module.deoptimize(bind)
-        module.deoptimize(fragment.getDeclaredMethod("h", String::class.java))
+        module.deoptimize(fragment.abiMethod(abi, "h", String::class.java))
     }
 
     private class SelectionCallback(val context: Context, val original: Any,
                                     val pinyinId: String = KeyboardChoice.PINYIN.id,
+                                    val abi: KeyboardAbi = KeyboardAbi.require(context.classLoader, HostSymbols.KEYBOARD_PICKER),
                                     val invoke: (Any, String) -> Any?) : InvocationHandler {
-        override fun invoke(proxy: Any, method: java.lang.reflect.Method, args: Array<out Any?>?): Any? = when (method.name) {
+        override fun invoke(proxy: Any, method: java.lang.reflect.Method, args: Array<out Any?>?): Any? = when (abi.canonical(method)) {
             "equals" -> proxy === args?.get(0)
             "hashCode" -> System.identityHashCode(proxy)
             "toString" -> "XatypeKeyboardSelection"

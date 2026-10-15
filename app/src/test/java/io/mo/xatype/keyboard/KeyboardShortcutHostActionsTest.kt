@@ -5,7 +5,7 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class KeyboardShortcutHostActionsTest {
-    private val adapter = KeyboardShortcutHostActions(javaClass.classLoader!!)
+    private val adapter = KeyboardShortcutHostActions(javaClass.classLoader!!, io.mo.xatype.compat.KeyboardAbi.reference(javaClass.classLoader!!))
     private class Callbacks(val segments: MutableList<String>, val hasCandidates: Boolean = true,
                             val stall: Boolean = false) : ab.b1 {
         val events = mutableListOf<String>()

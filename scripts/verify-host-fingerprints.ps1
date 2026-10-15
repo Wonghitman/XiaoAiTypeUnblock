@@ -10,6 +10,7 @@ param(
     [string]$SdkPath,
     [string]$AdbPath = 'adb',
     [string]$DeviceSerial,
+    [string[]]$RequireKey = @(),
     [string]$Platform = 'android-35',
     [string]$BuildTools = '35.0.0',
     [string]$Abi = 'arm64-v8a'
@@ -39,6 +40,7 @@ if (!$DeviceSerial) {
     $DeviceSerial = ($devices[0] -split '\s+')[0]
 }
 if ($DeviceSerial -notmatch '^[A-Za-z0-9_.:-]+$') { throw 'Invalid device serial.' }
+foreach ($key in $RequireKey) { if ($key -notmatch '^[A-Za-z0-9_.]+$') { throw 'Invalid required symbol key.' } }
 $taskId = [Guid]::NewGuid().ToString('N')
 $output = Join-Path $projectRoot "work\fingerprint-probe-$taskId"
 $remote = "/data/local/tmp/xatype-fingerprint-$taskId"
@@ -80,6 +82,7 @@ Invoke-Adb shell chmod 444 "$remote/probe.dex" "$remote/module.apk" @remoteTarge
 # Root is used solely to execute the probe and read these temporary files.
 $command = "CLASSPATH=$remote/probe.dex:$remote/module.apk app_process /system/bin " +
     "HostSymbolsProbe $Table $remote/lib $remote/work $($remoteTargets -join ' ')"
+if ($RequireKey.Count -gt 0) { $command += " --require=$($RequireKey -join ',')" }
 $result = @(Invoke-Adb shell su -c "'$command'")
 # The probe ran as root, so its cache files need root to remove.
 Invoke-Adb shell su -c "'rm -rf $remote'" | Out-Null

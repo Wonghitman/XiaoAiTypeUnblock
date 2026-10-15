@@ -1,12 +1,15 @@
 package io.mo.xatype.shape
 
+import io.mo.xatype.compat.HostSymbols
+import io.mo.xatype.compat.KeyboardAbi
+import io.mo.xatype.compat.abiMethod
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Modifier
 import java.lang.reflect.Proxy
 
-/** The 21053 ABI only. Resolve and validate everything before replacing a host engine. */
-class ShapeHostBridge(private val loader: ClassLoader) {
-    private fun type(name: String) = Class.forName(name, false, loader)
+/** Resolve and validate the fingerprinted ABI before replacing a host engine. */
+class ShapeHostBridge(private val loader: ClassLoader, private val abi: KeyboardAbi = KeyboardAbi.require(loader, HostSymbols.KEYBOARD_ENGINE)) {
+    private fun type(name: String) = abi.type(name)
     val engineType = type("z8.g")
     val baseInterface = type("z8.q")
     private val extendedInterface = type("z8.p")
@@ -51,7 +54,7 @@ class ShapeHostBridge(private val loader: ClassLoader) {
         )
         require(extendedInterface.methods.size == expected.size) { "形码接口数量不匹配" }
         expected.forEach { (name, signature) ->
-            require(extendedInterface.getMethod(name, *signature.second).returnType == signature.first) {
+            require(extendedInterface.abiMethod(abi, name, *signature.second).returnType == signature.first) {
                 "形码接口签名不匹配：$name"
             }
         }
@@ -83,10 +86,10 @@ class ShapeHostBridge(private val loader: ClassLoader) {
     private inner class Session(val engine: ShapeEngine, val onInput: () -> Unit) : InvocationHandler {
         override fun invoke(proxy: Any, method: java.lang.reflect.Method, args: Array<out Any?>?): Any? {
             val arg = args.orEmpty()
-            return when (method.name) {
+            return when (abi.canonical(method)) {
                 "equals" -> proxy === arg[0]
                 "hashCode" -> System.identityHashCode(proxy)
-                "toString" -> "ShapeEngine(21053)"
+                "toString" -> "ShapeEngine(resolved ABI)"
                 "a" -> pinyin
                 "b" -> engine.select(arg[0] as Int).orEmpty()
                 "clear", "destroy", "t" -> { engine.clear(); null }

@@ -1,18 +1,22 @@
 package io.mo.xatype.keyboard
 
+import io.mo.xatype.compat.HostSymbols
+import io.mo.xatype.compat.KeyboardAbi
+import io.mo.xatype.compat.abiMethod
+
 /** Finish pending input through native candidate callbacks before moving the editor selection. */
-class KeyboardShortcutHostActions(loader: ClassLoader) {
-    private val callbacks = Class.forName("ab.b1", false, loader)
-    private val pending = callbacks.getMethod("n")
-    private val candidates = callbacks.getMethod("d")
-    private val text = callbacks.getMethod("f")
-    private val selected = callbacks.getMethod("M")
-    private val choose = callbacks.getMethod("b", Int::class.javaPrimitiveType)
-    private val commit = callbacks.getMethod("K", String::class.java)
-    private val current = callbacks.getMethod("u")
-    private val clear = current.returnType.getMethod("clear")
-    private val refresh = callbacks.getMethod("F")
-    private val finish = callbacks.getMethod("J")
+class KeyboardShortcutHostActions(loader: ClassLoader, private val abi: KeyboardAbi = KeyboardAbi.require(loader, HostSymbols.KEYBOARD_ACTIONS)) {
+    private val callbacks = abi.type("ab.b1")
+    private val pending = callbacks.abiMethod(abi, "n")
+    private val candidates = callbacks.abiMethod(abi, "d")
+    private val text = callbacks.abiMethod(abi, "f")
+    private val selected = callbacks.abiMethod(abi, "M")
+    private val choose = callbacks.abiMethod(abi, "b", Int::class.javaPrimitiveType)
+    private val commit = callbacks.abiMethod(abi, "K", String::class.java)
+    private val current = callbacks.abiMethod(abi, "u")
+    private val clear = current.returnType.abiMethod(abi, "clear")
+    private val refresh = callbacks.abiMethod(abi, "F")
+    private val finish = callbacks.abiMethod(abi, "J")
 
     fun finishInput(target: Any) {
         var previous: String? = null

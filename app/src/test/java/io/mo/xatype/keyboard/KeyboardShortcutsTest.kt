@@ -6,7 +6,8 @@ import org.junit.Test
 
 class KeyboardShortcutsTest {
     private val loader = javaClass.classLoader!!
-    private val adapter = KeyboardShortcutHostLayout(loader)
+    private val abi = io.mo.xatype.compat.KeyboardAbi.reference(loader)
+    private val adapter = KeyboardShortcutHostLayout(loader, abi)
     private fun key(code: Int, label: String, popup: List<String>? = null) = ka.c(code,
         label, 1f, 36f, 48f, ka.f.CHAR, "-", "-", popup, 1, 5, false, true, false, false, 7, false, 9)
     private fun layout(english: Boolean, shift: Boolean, split: Boolean): ka.g {
@@ -48,7 +49,7 @@ class KeyboardShortcutsTest {
     }
 
     @Test fun `18 key actions work in Chinese and English while popup keeps letters and hints only`() {
-        val builder = Keyboard18HostLayout(loader)
+        val builder = Keyboard18HostLayout(loader, abi)
         for (english in listOf(false, true)) {
             val keyboard = builder.rebuild(layout(english, false, false), english) as ka.g
             assertEquals(5, keys(keyboard).mapNotNull { adapter.action(it, true) }.size)

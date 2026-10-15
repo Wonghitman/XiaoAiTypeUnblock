@@ -4,8 +4,9 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ShapeHostKeyAdapterTest {
-    private val bridge = ShapeHostBridge(javaClass.classLoader!!)
-    private val adapter = ShapeHostKeyAdapter(javaClass.classLoader!!, bridge)
+    private val bridge = ShapeHostBridge(javaClass.classLoader!!, io.mo.xatype.compat.KeyboardAbi.reference(javaClass.classLoader!!))
+    private val adapter = ShapeHostKeyAdapter(javaClass.classLoader!!, bridge,
+        io.mo.xatype.compat.KeyboardAbi.reference(javaClass.classLoader!!))
     private val engine = ShapeEngine(ShapeDictionary("测试", listOf(
         ShapeEntry("你", "jx"), ShapeEntry("甲", "a"), ShapeEntry("乙", "a"))), ShapeRules())
     private var notifications = 0

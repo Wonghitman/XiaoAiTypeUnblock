@@ -13,13 +13,13 @@ import io.mo.xatype.hooks.ClipboardSensitiveHook
 import io.mo.xatype.hooks.CloudBlacklistHook
 import io.mo.xatype.hooks.HyperOsVersionHook
 import io.mo.xatype.hooks.InputDiagnosticsHook
-import io.mo.xatype.hooks.ShapeInputHook
 import io.mo.xatype.hooks.Keyboard18Hook
+import io.mo.xatype.hooks.KeyboardBottomSpacingHook
+import io.mo.xatype.hooks.KeyboardHeightUnblockHook
 import io.mo.xatype.hooks.KeyboardSelectionHook
 import io.mo.xatype.hooks.KeyboardShortcutsHook
 import io.mo.xatype.hooks.KeyboardStyleHook
-import io.mo.xatype.hooks.KeyboardHeightUnblockHook
-import io.mo.xatype.hooks.KeyboardBottomSpacingHook
+import io.mo.xatype.hooks.ShapeInputHook
 import io.mo.xatype.hooks.SystemUiNavigationGuardHook
 import io.mo.xatype.hooks.TelemetryBlockHook
 import io.mo.xatype.hooks.VoiceModerationHook
@@ -85,7 +85,7 @@ class XiaoAiTypeModule : XposedModule() {
                     processCacheDir
                 )
             } else {
-                ClipboardPermanentHook.install(this, classLoader)
+                ClipboardPermanentHook.install(this, classLoader, cacheDir = processCacheDir)
             }
         } catch (t: Throwable) {
             XposedUtils.logError(this, "Error installing ClipboardPermanentHook", t)
@@ -98,24 +98,28 @@ class XiaoAiTypeModule : XposedModule() {
         try {
             KeyboardSelectionHook.install(this, classLoader)
         } catch (t: Throwable) {
+            HostSymbols.markUnavailable(HostSymbols.KEYBOARD_PICKER, t)
             XposedUtils.logError(this, "Independent keyboard picker unavailable for this host ABI", t)
         }
 
         try {
             ShapeInputHook.install(this, classLoader)
         } catch (t: Throwable) {
+            HostSymbols.markUnavailable(HostSymbols.KEYBOARD_ENGINE, t)
             XposedUtils.logError(this, "Shape input unavailable for this host ABI", t)
         }
 
         try {
             Keyboard18Hook.install(this, classLoader)
         } catch (t: Throwable) {
+            HostSymbols.markUnavailable(HostSymbols.KEYBOARD_LAYOUT, t)
             XposedUtils.logError(this, "18-key keyboard unavailable for this host ABI", t)
         }
 
         try {
             KeyboardShortcutsHook.install(this, classLoader)
         } catch (t: Throwable) {
+            HostSymbols.markUnavailable(HostSymbols.KEYBOARD_SWIPE, t)
             XposedUtils.logError(this, "Letter shortcuts unavailable for this host ABI", t)
         }
 
@@ -187,6 +191,7 @@ class XiaoAiTypeModule : XposedModule() {
             XposedUtils.logError(this, "Error installing KeyboardBottomSpacingHook", t)
         }
 
+        AdaptationReporter.report(this, TARGET_PACKAGE, HostSymbols)
         XposedUtils.log(this, "XiaoAiTypeUnblock hooks installation complete.")
     }
 
@@ -203,7 +208,6 @@ class XiaoAiTypeModule : XposedModule() {
                 XposedUtils.moduleStamp(this)
             )
             XposedUtils.log(this, "Host symbols: $summary")
-            AdaptationReporter.report(this, TARGET_PACKAGE, HostSymbols)
         } catch (t: Throwable) {
             XposedUtils.logError(this, "Error resolving host symbols", t)
         }

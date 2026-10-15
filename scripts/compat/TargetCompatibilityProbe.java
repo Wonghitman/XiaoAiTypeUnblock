@@ -28,7 +28,10 @@ public final class TargetCompatibilityProbe {
                 type.getName() + "." + name + " return type");
     }
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
+        try { run(args); } catch (Throwable failure) { failure.printStackTrace(System.out); System.exit(1); }
+    }
+    private static void run(String[] args) throws Exception {
         Class<?> compat = Class.forName("io.mo.xatype.compat.TargetCompatibility");
         Object singleton = compat.getField("INSTANCE").get(null);
         ClassLoader boot = ClassLoader.getSystemClassLoader().getParent();
@@ -105,7 +108,13 @@ public final class TargetCompatibilityProbe {
                         .newInstance(26, ids[index], ids[index]);
             }
             Class<?> picker = Class.forName("io.mo.xatype.keyboard.KeyboardPickerBridge");
-            Object bridge = picker.getConstructor(ClassLoader.class).newInstance(target);
+            Class<?> abiType=Class.forName("io.mo.xatype.compat.KeyboardAbi");
+            Object abiCompanion=abiType.getField("Companion").get(null);
+            Method reference=null;
+            for(Method candidate:abiCompanion.getClass().getMethods()) if(candidate.getName().startsWith("reference")) reference=candidate;
+            check(reference!=null,"explicit reference profile injection");
+            Object abi=reference.invoke(abiCompanion,target);
+            Object bridge = picker.getConstructor(ClassLoader.class,abiType).newInstance(target,abi);
             Method extend = picker.getMethod("extend", Object[].class, boolean.class, boolean.class);
             java.util.List<?> choices = (java.util.List<?>) extend.invoke(bridge, modes, true, true);
             check(choices.size() == 6, "two independent keyboard choices");

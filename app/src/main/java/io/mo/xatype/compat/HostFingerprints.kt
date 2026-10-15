@@ -2,13 +2,13 @@ package io.mo.xatype.compat
 
 import android.content.Context
 import android.os.Bundle
+import java.lang.reflect.Modifier
 import org.luckypray.dexkit.DexKitBridge
+import org.luckypray.dexkit.query.matchers.FieldMatcher
 import org.luckypray.dexkit.result.MethodData
 import org.luckypray.dexkit.wrap.DexClass
 import org.luckypray.dexkit.wrap.DexField
 import org.luckypray.dexkit.wrap.DexMethod
-import org.luckypray.dexkit.query.matchers.FieldMatcher
-import java.lang.reflect.Modifier
 
 /**
  * Fingerprints anchored on strings, constants and non-obfuscated types that
@@ -38,6 +38,10 @@ internal object HostFingerprints {
         }
         collector.put(HostSymbols.BOTTOM_SPACING, HostSymbols.BOTTOM_SPACING_CONSUME,
             HostSymbols.BOTTOM_SPACING_CALLERS) { bottomSpacing(bridge, loader) }
+        val keyboard = KeyboardAbiFingerprints(bridge)
+        KeyboardAbi.groups.forEach { group ->
+            collector.put(group) { listOf(keyboard.resolve(group)) }
+        }
         return collector.result()
     }
 

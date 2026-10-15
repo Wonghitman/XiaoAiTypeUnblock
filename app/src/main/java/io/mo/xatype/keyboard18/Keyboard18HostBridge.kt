@@ -1,15 +1,17 @@
 package io.mo.xatype.keyboard18
 
 import android.inputmethodservice.InputMethodService
+import io.mo.xatype.compat.HostSymbols
+import io.mo.xatype.compat.KeyboardAbi
 import io.mo.xatype.shape.ShapeHostBridge
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Modifier
 import java.lang.reflect.Proxy
 
-/** Reuse the existing full 21053 ABI validation, with independent 18-key sessions. */
-class Keyboard18HostBridge(private val loader: ClassLoader) {
-    private fun type(name: String) = Class.forName(name, false, loader)
-    private val abi = ShapeHostBridge(loader)
+/** Reuse the full fingerprinted engine ABI validation, with independent 18-key sessions. */
+class Keyboard18HostBridge(private val loader: ClassLoader, private val profile: KeyboardAbi = KeyboardAbi.require(loader, HostSymbols.KEYBOARD_ENGINE)) {
+    private fun type(name: String) = profile.type(name)
+    private val abi = ShapeHostBridge(loader, profile)
     val engineType = abi.engineType
     val baseInterface = abi.baseInterface
     val pinyin = abi.pinyin
@@ -38,10 +40,10 @@ class Keyboard18HostBridge(private val loader: ClassLoader) {
     inner class Session(val engine: Keyboard18Engine, var service: InputMethodService, val onInput: () -> Unit) : InvocationHandler {
         override fun invoke(proxy: Any, method: java.lang.reflect.Method, args: Array<out Any?>?): Any? {
             val arguments = args.orEmpty()
-            return when (method.name) {
+            return when (profile.canonical(method)) {
                 "equals" -> proxy === arguments[0]
                 "hashCode" -> System.identityHashCode(proxy)
-                "toString" -> "Keyboard18Engine(21053)"
+                "toString" -> "Keyboard18Engine(resolved ABI)"
                 "a" -> pinyin
                 "b" -> engine.select(arguments[0] as Int).orEmpty()
                 "clear", "destroy", "t" -> { engine.clear(); null }

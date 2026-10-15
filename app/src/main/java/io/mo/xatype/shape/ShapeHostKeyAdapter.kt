@@ -1,16 +1,21 @@
 package io.mo.xatype.shape
 
+import io.mo.xatype.compat.HostSymbols
+import io.mo.xatype.compat.KeyboardAbi
+import io.mo.xatype.compat.abiField
+import io.mo.xatype.compat.abiMethod
+
 /** Keep raw shape codes out of the host's phonetic touch correction and learning path. */
-class ShapeHostKeyAdapter(loader: ClassLoader, private val bridge: ShapeHostBridge) {
-    val callbacksClass: Class<*> = Class.forName("ab.b1", false, loader)
-    val keyClass: Class<*> = Class.forName("ka.c", false, loader)
+class ShapeHostKeyAdapter(loader: ClassLoader, private val bridge: ShapeHostBridge, private val abi: KeyboardAbi = KeyboardAbi.require(loader, HostSymbols.KEYBOARD_ENGINE)) {
+    val callbacksClass: Class<*> = abi.type("ab.b1")
+    val keyClass: Class<*> = abi.type("ka.c")
     // Use DEX names, not JADX's f9430a display alias.
-    private val code = keyClass.getDeclaredField("a").apply { isAccessible = true }
-    private val kind = keyClass.getDeclaredField("f").apply { isAccessible = true }
-    private val currentEngine = callbacksClass.getMethod("u")
-    private val uppercase = callbacksClass.getMethod("o")
-    private val commit = callbacksClass.getMethod("K", String::class.java)
-    private val refresh = callbacksClass.getMethod("y", Class.forName("z8.r", false, loader))
+    private val code = keyClass.abiField(abi, "a").apply { isAccessible = true }
+    private val kind = keyClass.abiField(abi, "f").apply { isAccessible = true }
+    private val currentEngine = callbacksClass.abiMethod(abi, "u")
+    private val uppercase = callbacksClass.abiMethod(abi, "o")
+    private val commit = callbacksClass.abiMethod(abi, "K", String::class.java)
+    private val refresh = callbacksClass.abiMethod(abi, "y", abi.type("z8.r"))
 
     init {
         require(code.type == Int::class.javaPrimitiveType && kind.type.isEnum &&

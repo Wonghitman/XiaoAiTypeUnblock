@@ -1,13 +1,16 @@
 package io.mo.xatype.hooks
 
 import android.inputmethodservice.InputMethodService
-import android.os.Build
 import io.github.libxposed.api.XposedInterface
+import io.mo.xatype.compat.HostSymbols
+import io.mo.xatype.compat.KeyboardAbi
+import io.mo.xatype.compat.abiField
+import io.mo.xatype.compat.abiMethod
 import io.mo.xatype.config.ConfigManager
 import io.mo.xatype.keyboard.KeyboardChoice
 import io.mo.xatype.keyboard.KeyboardShortcutActions
-import io.mo.xatype.keyboard.KeyboardShortcutHostLayout
 import io.mo.xatype.keyboard.KeyboardShortcutHostActions
+import io.mo.xatype.keyboard.KeyboardShortcutHostLayout
 import io.mo.xatype.keyboard.KeyboardShortcuts
 import io.mo.xatype.util.XposedUtils
 
@@ -18,27 +21,28 @@ object KeyboardShortcutsHook {
     @Volatile private var layoutMode = "PINYIN"
 
     fun install(module: XposedInterface, loader: ClassLoader) {
-        val layouts = KeyboardShortcutHostLayout(loader)
-        val actions = KeyboardShortcutHostActions(loader)
-        val hostService = Class.forName("com.mi.ime.MiInputMethodService", false, loader)
-        val manager = Class.forName("ab.p1", false, loader)
+        val abi = KeyboardAbi.require(loader, HostSymbols.KEYBOARD_LAYOUT, HostSymbols.KEYBOARD_ACTIONS, HostSymbols.KEYBOARD_SWIPE)
+        val layouts = KeyboardShortcutHostLayout(loader, abi)
+        val actions = KeyboardShortcutHostActions(loader, abi)
+        val hostService = abi.type("com.mi.ime.MiInputMethodService")
+        val manager = abi.type("ab.p1")
         val context = manager.declaredFields.single { hostService.isAssignableFrom(it.type) }
             .apply { isAccessible = true }
-        val engineType = Class.forName("z8.g", false, loader)
-        val factory = manager.getDeclaredMethod("e", String::class.java, Integer::class.java,
-            String::class.java, Boolean::class.javaPrimitiveType, Class.forName("la.a", false, loader))
-        val callbacks = Class.forName("ab.b1", false, loader)
-        val handler = Class.forName("ab.f1", false, loader).getDeclaredMethod("c", layouts.key, callbacks)
-        val label = layouts.key.getDeclaredField("b").apply { isAccessible = true }
-        val kind = layouts.key.getDeclaredField("f").apply { isAccessible = true }
-        val popup = layouts.key.getDeclaredField("i").apply { isAccessible = true }
-        val mode = callbacks.getMethod("m")
-        val layoutId = callbacks.getMethod("A")
+        val engineType = abi.type("z8.g")
+        val factory = manager.abiMethod(abi, "e", String::class.java, Integer::class.java,
+            String::class.java, Boolean::class.javaPrimitiveType, abi.type("la.a"))
+        val callbacks = abi.type("ab.b1")
+        val handler = abi.type("ab.f1").abiMethod(abi, "c", layouts.key, callbacks)
+        val label = layouts.key.abiField(abi, "b").apply { isAccessible = true }
+        val kind = layouts.key.abiField(abi, "f").apply { isAccessible = true }
+        val popup = layouts.key.abiField(abi, "i").apply { isAccessible = true }
+        val mode = callbacks.abiMethod(abi, "m")
+        val layoutId = callbacks.abiMethod(abi, "A")
         require(factory.returnType == layouts.layout && handler.returnType == Void.TYPE)
 
-        val modeChange = manager.getDeclaredMethod("H", engineType,
+        val modeChange = manager.abiMethod(abi, "H", engineType,
             android.view.inputmethod.EditorInfo::class.java, Boolean::class.javaPrimitiveType)
-        val editorChange = manager.getDeclaredMethod("G", android.view.inputmethod.EditorInfo::class.java, engineType)
+        val editorChange = manager.abiMethod(abi, "G", android.view.inputmethod.EditorInfo::class.java, engineType)
         for ((method, index) in listOf(modeChange to 0, editorChange to 1)) {
             module.hook(method).intercept { chain ->
                 layoutMode = (chain.getArg(index) as Enum<*>).name
@@ -49,15 +53,7 @@ object KeyboardShortcutsHook {
         module.hook(factory).intercept { chain ->
             val ime = context.get(chain.thisObject) as InputMethodService
             service = ime
-            if (supported == null) {
-                supported = runCatching {
-                    @Suppress("DEPRECATION")
-                    val info = ime.packageManager.getPackageInfo("com.xiaomi.type", 0)
-                    @Suppress("DEPRECATION")
-                    (if (Build.VERSION.SDK_INT >= 28) info.longVersionCode else info.versionCode.toLong()) == 21053L
-                }.getOrDefault(false)
-                if (supported == true) ConfigManager.syncFromProvider(ime)
-            }
+            supported = true
             chain.proceed()
         }
         module.deoptimize(factory)
@@ -90,6 +86,6 @@ object KeyboardShortcutsHook {
                 } == true
         }, keyboard18 = { service?.let { KeyboardSelectionHook.selected(it) == KeyboardChoice.KEYBOARD18 } == true })
             .install(module, loader)
-        XposedUtils.log(module, "Independent downward swipe shortcut hooks installed (host 21053)")
+        XposedUtils.log(module, "Independent downward swipe shortcut hooks installed (resolved ABI)")
     }
 }

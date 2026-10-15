@@ -5,7 +5,7 @@ import org.junit.Test
 import z9.g6
 
 class KeyboardSelectionTest {
-    private val picker = KeyboardPickerBridge(javaClass.classLoader!!)
+    private val picker = KeyboardPickerBridge(javaClass.classLoader!!, io.mo.xatype.compat.KeyboardAbi.reference(javaClass.classLoader!!))
     private fun native() = arrayOf(
         g6(26, "qwerty_chinese", "拼音26键"), g6(9, "t9_chinese", "拼音9键"),
         g6(1, "handwriting_chinese", "手写"), g6(2, "stroke_chinese", "笔画"))

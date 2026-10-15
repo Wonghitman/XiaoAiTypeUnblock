@@ -152,7 +152,7 @@ internal class ShapeSettingsView(context: Context, private val actions: Actions)
         }
         hero.addView(metrics, spaced(top = LG, bottom = SM))
         hero.addView(toggleRow("在键盘选择中显示虎码/五笔", "显示入口后，在小爱键盘面板中选择使用", ShapeStore.SHOW_IN_PICKER, inset = false), spaced(top = SM))
-        hero.addView(text("实验功能 · 适配小爱 0.2.1053", CAPTION, style.secondary), spaced(top = SM))
+        hero.addView(text("实验功能 · 按宿主接口自动适配", CAPTION, style.secondary), spaced(top = SM))
 
         body.addView(row().apply {
             background = style.surface(style.accentSurface)

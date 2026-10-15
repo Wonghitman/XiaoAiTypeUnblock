@@ -23,6 +23,10 @@ object PhraseSymbols : SymbolTable(2, PhraseFingerprints::resolve) {
         STORAGE_WRITE, STORAGE_ENTRY, POPUP_UPDATE_LAMBDA, POPUP_REMOTE_LAMBDA,
         POPUP_INIT_TASK, MANAGER_RUNNABLES
     )
+
+    override fun validateValues(key: String, values: List<String>): Boolean =
+        if (key == MANAGER_RUNNABLES) values.isEmpty() || super.validateValues(key, values)
+        else values.size == 1 && super.validateValues(key, values)
 }
 
 /** Anchors verified on com.miui.phrase 5.6.9 to 5.7.4. */

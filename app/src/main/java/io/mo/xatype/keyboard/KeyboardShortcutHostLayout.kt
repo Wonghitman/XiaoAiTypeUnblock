@@ -1,13 +1,16 @@
 package io.mo.xatype.keyboard
 
+import io.mo.xatype.compat.HostSymbols
+import io.mo.xatype.compat.KeyboardAbi
+import io.mo.xatype.compat.abiField
 import io.mo.xatype.keyboard18.Keyboard18Keys
 
 /** Inspect native/grouped letters and create a release action without mutating visible keys. */
-class KeyboardShortcutHostLayout(loader: ClassLoader) {
-    val key = Class.forName("ka.c", false, loader)
-    val layout = Class.forName("ka.g", false, loader)
-    private val kind = Class.forName("ka.f", false, loader)
-    private val fields = ('a'..'r').map { key.getDeclaredField(it.toString()).apply { isAccessible = true } }
+class KeyboardShortcutHostLayout(loader: ClassLoader, private val abi: KeyboardAbi = KeyboardAbi.require(loader, HostSymbols.KEYBOARD_LAYOUT)) {
+    val key = abi.type("ka.c")
+    val layout = abi.type("ka.g")
+    private val kind = abi.type("ka.f")
+    private val fields = ('a'..'r').map { key.abiField(abi, it.toString()).apply { isAccessible = true } }
     private val constructor = key.getConstructor(Int::class.javaPrimitiveType, String::class.java,
         Float::class.javaPrimitiveType, java.lang.Float::class.java, java.lang.Float::class.java,
         kind, String::class.java, String::class.java, List::class.java, Integer::class.java,

@@ -10,16 +10,17 @@ import android.util.Base64
 import android.widget.TextView
 import io.github.libxposed.api.XposedInterface
 import io.mo.xatype.compat.AdaptationReporter
+import io.mo.xatype.compat.LoadedApkSource
 import io.mo.xatype.compat.PhraseSymbols
 import io.mo.xatype.config.ConfigManager
 import io.mo.xatype.util.XposedUtils
-import org.json.JSONArray
-import org.json.JSONObject
 import java.io.File
 import java.lang.reflect.Method
 import java.util.LinkedHashSet
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
+import org.json.JSONArray
+import org.json.JSONObject
 
 /**
  * Removes MIUIFrequentPhrase's expiry, item-count and text-length limits.
@@ -43,6 +44,9 @@ object ClipboardPermanentHook {
     private const val HEADER_ADAPTER_CLASS = "com.miui.inputmethod.InputMethodClipboardHeaderAdapter"
     private const val UNLIMITED_TIP = "剪贴板内容永久保存，不限制条数与文字长度"
     private val installedManagerClasses = ConcurrentHashMap.newKeySet<Class<*>>()
+    private val cachedManagerClasses = ConcurrentHashMap.newKeySet<Class<*>>()
+    private val activeManagerInstalls = ConcurrentHashMap.newKeySet<Class<*>>()
+    @Volatile private var ownCacheDir: File? = null
     private val classLoaderWatcherInstalled = AtomicBoolean(false)
     private val phraseContextLoaderHookInstalled = AtomicBoolean(false)
     private val readHookHitLogged = AtomicBoolean(false)
@@ -64,6 +68,7 @@ object ClipboardPermanentHook {
         phraseApk: String? = null,
         cacheDir: File? = null
     ) {
+        if (cacheDir != null) ownCacheDir = cacheDir
         installFrameworkBridge(module)
         val managerClass = XposedUtils.findClass(MANAGER_CLASS, classLoader)
         if (managerClass == null) {
@@ -176,36 +181,49 @@ object ClipboardPermanentHook {
         cacheDir: File? = null
     ) {
         val classLoader = managerClass.classLoader ?: return
-        if (!installedManagerClasses.add(managerClass)) return
+        // Reflection during scanning can re-enter the global loadClass observer.
+        if (!activeManagerInstalls.add(managerClass)) return
+        try {
+            val apk = phraseApk ?: LoadedApkSource.find(classLoader, MANAGER_CLASS)
+            val cache = (cacheDir ?: ownCacheDir)?.let { File(it, "xatype-phrase-symbols.json") }
+            val firstInstall = installedManagerClasses.add(managerClass)
+            // A class-load observer may run before createPackageContext returns. Allow
+            // its later call to supply a persistent cache without installing hooks twice.
+            if (!firstInstall && (apk == null || cache == null || managerClass in cachedManagerClasses)) return
 
-        val summary = PhraseSymbols.init(
-            classLoader,
-            phraseApk,
-            cacheDir?.let { File(it, "xatype-phrase-symbols.json") },
-            XposedUtils.moduleStamp(module)
-        )
-        XposedUtils.log(module, "[Permanent Clipboard] Phrase symbols: $summary")
-        AdaptationReporter.report(module, PHRASE_PACKAGE, PhraseSymbols)
-        PhraseSymbols.clazz(PhraseSymbols.POPUP_INIT_TASK)?.let { popupInitTaskName = it.name }
+            val summary = PhraseSymbols.init(
+                classLoader,
+                apk,
+                cache,
+                XposedUtils.moduleStamp(module)
+            )
+            XposedUtils.log(module, "[Permanent Clipboard] Phrase symbols: $summary")
+            if (cache?.isFile == true) cachedManagerClasses.add(managerClass)
+            AdaptationReporter.report(module, PHRASE_PACKAGE, PhraseSymbols)
+            if (!firstInstall) return
+            PhraseSymbols.clazz(PhraseSymbols.POPUP_INIT_TASK)?.let { popupInitTaskName = it.name }
 
-        installTextLengthHooks(module, managerClass)
-        installCleanupHooks(module, managerClass)
-        installPublicReadHook(module, managerClass)
-        installReadHooks(module, managerClass)
-        installMergeHooks(module, managerClass)
-        installOutboundSaveHook(module, managerClass)
-        installDisplayListWriteHook(module, managerClass)
-        installProviderCallHook(module, classLoader, managerClass)
-        installProviderEntryHook(module, classLoader, managerClass)
-        installProviderWriteHook(module, classLoader, managerClass)
-        installPopupHooks(module, classLoader)
-        installPopupInitTaskHook(module, classLoader, managerClass)
-        installHeaderHook(module, classLoader)
-        deoptimizeCallers(module, managerClass, classLoader)
-        XposedUtils.log(
-            module,
-            "[Permanent Clipboard] Unlimited clipboard hooks installed; enabled=${ConfigManager.isClipboardPermanentEnabled()}"
-        )
+            installTextLengthHooks(module, managerClass)
+            installCleanupHooks(module, managerClass)
+            installPublicReadHook(module, managerClass)
+            installReadHooks(module, managerClass)
+            installMergeHooks(module, managerClass)
+            installOutboundSaveHook(module, managerClass)
+            installDisplayListWriteHook(module, managerClass)
+            installProviderCallHook(module, classLoader, managerClass)
+            installProviderEntryHook(module, classLoader, managerClass)
+            installProviderWriteHook(module, classLoader, managerClass)
+            installPopupHooks(module, classLoader)
+            installPopupInitTaskHook(module, classLoader, managerClass)
+            installHeaderHook(module, classLoader)
+            deoptimizeCallers(module, managerClass, classLoader)
+            XposedUtils.log(
+                module,
+                "[Permanent Clipboard] Unlimited clipboard hooks installed; enabled=${ConfigManager.isClipboardPermanentEnabled()}"
+            )
+        } finally {
+            activeManagerInstalls.remove(managerClass)
+        }
     }
 
     private fun installPhraseContextLoaderHook(module: XposedInterface, classLoader: ClassLoader) {
@@ -258,7 +276,9 @@ object ClipboardPermanentHook {
                     val loadedClass = chain.proceed()
                     if (chain.getArg(0) == MANAGER_CLASS && loadedClass is Class<*>) {
                         try {
-                            installForManagerClass(module, loadedClass)
+                            installForManagerClass(module, loadedClass,
+                                LoadedApkSource.find(loadedClass.classLoader ?: return@intercept loadedClass, MANAGER_CLASS),
+                                ownCacheDir)
                         } catch (t: Throwable) {
                             XposedUtils.logError(
                                 module,

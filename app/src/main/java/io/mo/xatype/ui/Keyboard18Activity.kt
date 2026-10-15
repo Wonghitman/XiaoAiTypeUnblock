@@ -24,11 +24,11 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.widget.NestedScrollView
+import io.mo.xatype.config.ConfigManager
+import io.mo.xatype.keyboard.KeyboardShortcuts
 import io.mo.xatype.keyboard18.Keyboard18Dictionary
 import io.mo.xatype.keyboard18.Keyboard18Engine
 import io.mo.xatype.keyboard18.Keyboard18Keys
-import io.mo.xatype.config.ConfigManager
-import io.mo.xatype.keyboard.KeyboardShortcuts
 import io.mo.xatype.keyboard18.Keyboard18Store
 import io.mo.xatype.keyboard18.Keyboard18Style
 import java.util.concurrent.Executors
@@ -177,7 +177,7 @@ class Keyboard18Activity : AppCompatActivity() {
         preview.addView(progress, spaced())
         preview.addView(button("清空预览") { engine?.clear(); output.text.clear(); showCandidates() }, spaced())
         body.addView(preview, spaced())
-        body.addView(text("适配小爱0.2.1053，真机使用效果仍待确认。使用独立离线候选；平板分离布局暂保留原布局。",
+        body.addView(text("按宿主接口自动适配，具体结果见首页状态。使用独立离线候选；平板分离布局暂保留原布局。",
             ShapeUiStyle.CAPTION, secondary = true), spaced())
         body.addView(button("重新读取词库") { prepareDictionary() }, spaced())
 

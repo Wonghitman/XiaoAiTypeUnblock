@@ -1,29 +1,32 @@
 package io.mo.xatype.hooks
 
-import android.content.Context
 import android.app.Application
 import android.app.Instrumentation
+import android.content.Context
 import android.inputmethodservice.InputMethodService
-import android.os.Build
 import android.os.Bundle
+import io.github.libxposed.api.XposedInterface
+import io.mo.xatype.compat.HostSymbols
+import io.mo.xatype.compat.KeyboardAbi
+import io.mo.xatype.compat.abiField
+import io.mo.xatype.compat.abiMethod
 import io.mo.xatype.config.ConfigManager
+import io.mo.xatype.keyboard.KeyboardChoice
 import io.mo.xatype.keyboard.KeyboardShortcutActions
 import io.mo.xatype.keyboard.KeyboardShortcuts
-import io.github.libxposed.api.XposedInterface
 import io.mo.xatype.keyboard18.Keyboard18Dictionary
 import io.mo.xatype.keyboard18.Keyboard18Engine
+import io.mo.xatype.keyboard18.Keyboard18HostAppearance
 import io.mo.xatype.keyboard18.Keyboard18HostBridge
 import io.mo.xatype.keyboard18.Keyboard18HostLayout
-import io.mo.xatype.keyboard18.Keyboard18HostAppearance
 import io.mo.xatype.keyboard18.Keyboard18Keys
 import io.mo.xatype.keyboard18.Keyboard18Store
-import io.mo.xatype.keyboard.KeyboardChoice
 import io.mo.xatype.provider.Keyboard18ContentProvider
 import io.mo.xatype.util.XposedUtils
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
-/** Opt-in 18-key keyboard and independent offline decoder, restricted to host 21053. */
+/** Opt-in 18-key keyboard and independent offline decoder, validated against the resolved host ABI. */
 object Keyboard18Hook {
     private val reports = Executors.newSingleThreadExecutor()
     private data class Loaded(val settings: Bundle, val dictionary: Keyboard18Dictionary?)
@@ -60,36 +63,37 @@ object Keyboard18Hook {
     }
 
     private fun installHostHooks(module: XposedInterface, loader: ClassLoader) {
-        val bridge = Keyboard18HostBridge(loader)
-        val layouts = Keyboard18HostLayout(loader)
-        val manager = Class.forName("ab.x0", false, loader)
-        val hostService = Class.forName("com.mi.ime.MiInputMethodService", false, loader)
+        val abi = KeyboardAbi.require(loader, HostSymbols.KEYBOARD_ENGINE)
+        val bridge = Keyboard18HostBridge(loader, abi)
+        val layouts = Keyboard18HostLayout(loader, abi)
+        val manager = abi.type("ab.x0")
+        val hostService = abi.type("com.mi.ime.MiInputMethodService")
         val contextField = manager.declaredFields.single { it.type == hostService }.apply { isAccessible = true }
-        val factory = manager.getDeclaredMethod("b", bridge.engineType)
-        val callbackClass = Class.forName("ab.b1", false, loader)
-        val keyClass = Class.forName("ka.c", false, loader)
-        val keyHandler = Class.forName("ab.f1", false, loader).getDeclaredMethod("c", keyClass, callbackClass)
-        val current = callbackClass.getMethod("u")
-        val uppercase = callbackClass.getMethod("o")
-        val commit = callbackClass.getMethod("K", String::class.java)
-        val refresh = callbackClass.getMethod("y", Class.forName("z8.r", false, loader))
-        val codeField = keyClass.getDeclaredField("a").apply { isAccessible = true }
-        val labelField = keyClass.getDeclaredField("b").apply { isAccessible = true }
-        val kindField = keyClass.getDeclaredField("f").apply { isAccessible = true }
-        val layoutFactory = Class.forName("ab.p1", false, loader).getDeclaredMethod("e",
+        val factory = manager.abiMethod(abi, "b", bridge.engineType)
+        val callbackClass = abi.type("ab.b1")
+        val keyClass = abi.type("ka.c")
+        val keyHandler = abi.type("ab.f1").abiMethod(abi, "c", keyClass, callbackClass)
+        val current = callbackClass.abiMethod(abi, "u")
+        val uppercase = callbackClass.abiMethod(abi, "o")
+        val commit = callbackClass.abiMethod(abi, "K", String::class.java)
+        val refresh = callbackClass.abiMethod(abi, "y", abi.type("z8.r"))
+        val codeField = keyClass.abiField(abi, "a").apply { isAccessible = true }
+        val labelField = keyClass.abiField(abi, "b").apply { isAccessible = true }
+        val kindField = keyClass.abiField(abi, "f").apply { isAccessible = true }
+        val layoutFactory = abi.type("ab.p1").abiMethod(abi, "e",
             String::class.java, Integer::class.java, String::class.java, Boolean::class.javaPrimitiveType,
-            Class.forName("la.a", false, loader))
+            abi.type("la.a"))
         // ab.p1.a is declared as MiInputMethodService, not its Context superclass.
         val layoutContext = layoutFactory.declaringClass.declaredFields.single { hostService.isAssignableFrom(it.type) }
             .apply { isAccessible = true }
-        val macros = Class.forName("ab.s0", false, loader).getDeclaredMethod("l", bridge.baseInterface)
+        val macros = abi.type("ab.s0").abiMethod(abi, "l", bridge.baseInterface)
         require(factory.returnType == bridge.baseInterface && layoutFactory.returnType == layouts.layout)
 
         // Both editor-action refresh and mode changes rebuild QWERTY, including SHUANGPIN.
         // Only replace the selected PINYIN/ENGLISH layout, never other QWERTY-based engines.
-        val modeChange = layoutFactory.declaringClass.getDeclaredMethod("H", bridge.engineType,
+        val modeChange = layoutFactory.declaringClass.abiMethod(abi, "H", bridge.engineType,
             android.view.inputmethod.EditorInfo::class.java, Boolean::class.javaPrimitiveType)
-        val editorChange = layoutFactory.declaringClass.getDeclaredMethod("G",
+        val editorChange = layoutFactory.declaringClass.abiMethod(abi, "G",
             android.view.inputmethod.EditorInfo::class.java, bridge.engineType)
         module.hook(modeChange).intercept { chain ->
             layoutMode = (chain.getArg(0) as Enum<*>).name
@@ -210,9 +214,10 @@ object Keyboard18Hook {
         module.deoptimize(layoutFactory)
         // Optional presentation hooks must not prevent the input engine from installing.
         runCatching { Keyboard18HostAppearance(layouts).install(module, loader) }.onFailure {
+            HostSymbols.markUnavailable(HostSymbols.KEYBOARD_LETTER_APPEARANCE, it)
             XposedUtils.logError(module, "18-key typography unavailable; retaining native typography", it)
         }
-        XposedUtils.log(module, "18-key prototype hooks installed (opt-in, host 21053)")
+        XposedUtils.log(module, "18-key keyboard hooks installed (opt-in, resolved ABI)")
     }
 
     @Synchronized
@@ -221,13 +226,6 @@ object Keyboard18Hook {
         val settings = context.contentResolver.call(Keyboard18ContentProvider.CONTENT_URI, "snapshot", null, null)
             ?: error("无法读取18键设置")
         if (!settings.getBoolean(Keyboard18Store.SHOW_IN_PICKER)) return Loaded(settings, null).also { loaded = it }
-        @Suppress("DEPRECATION")
-        val info = context.packageManager.getPackageInfo("com.xiaomi.type", 0)
-        val version = if (Build.VERSION.SDK_INT >= 28) info.longVersionCode else info.versionCode.toLong()
-        if (version != 21053L) {
-            report(context, settings, "未接入：18键原型仅适配小爱0.2.1053")
-            return Loaded(settings, null).also { loaded = it }
-        }
         val dictionary = checkNotNull(context.contentResolver.openInputStream(Keyboard18ContentProvider.DICTIONARY_URI))
             .use(Keyboard18Dictionary::read)
         val latest = context.contentResolver.call(Keyboard18ContentProvider.CONTENT_URI, "snapshot", null, null)

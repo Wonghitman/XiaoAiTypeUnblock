@@ -55,6 +55,28 @@ data class ModernKeyboardProfile(
 
     fun appsPanel(label: String): String = appsPanelFields.getValue(label)
 
+    /** Validate property caches before reporting a cache hit. */
+    fun validate(loader: ClassLoader): Boolean = runCatching {
+        fun type(name: String) = Class.forName(name, false, loader)
+        fun fields(name: String, names: Collection<String>) {
+            val owner = type(name)
+            names.forEach { owner.getDeclaredField(it) }
+        }
+        require(paletteFields.keys.containsAll(PALETTE_LABELS))
+        require(appsPanelFields.keys.containsAll(APPS_PANEL_LABELS))
+        fields(helperClassName, listOf(helperServiceField, helperMaterialField, helperStateField) + helperTokenFields)
+        fields(rendererClassName, listOf(rendererServiceField, rendererViewField, rendererEffectField))
+        fields(paletteClassName, paletteFields.values)
+        fields(type(paletteClassName).getDeclaredField(palette("appsPanel")).type.name, appsPanelFields.values)
+        fields(paletteHolderClassName, paletteHolderFields)
+        val helperMethods = type(helperClassName).declaredMethods.map { it.name }.toSet()
+        require(helperMethods.containsAll(listOf(materialSupportMethod, materialUpdateMethod, materialRefreshMethod,
+            materialCleanupMethod, materialVisibilityMethod, helperApplyMethod, helperDetachMethod, helperAttachMethod)))
+        require(type(rendererClassName).declaredMethods.any { it.name == rendererUpdateMethod })
+        require(type(paletteFactoryClassName).declaredMethods.any { it.name == paletteFactoryMethod })
+        require(type(materialApiClassName).declaredMethods.any { it.name == materialApiClearMethod })
+    }.isSuccess
+
     fun toProperties(): List<String> = buildList {
         SCALARS.forEach { (key, getter) -> add(key + "=" + getter(this@ModernKeyboardProfile)) }
         add("helperTokenFields=" + helperTokenFields.joinToString(","))

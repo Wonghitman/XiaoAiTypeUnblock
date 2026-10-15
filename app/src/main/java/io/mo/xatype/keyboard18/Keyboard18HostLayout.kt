@@ -1,11 +1,15 @@
 package io.mo.xatype.keyboard18
 
+import io.mo.xatype.compat.HostSymbols
+import io.mo.xatype.compat.KeyboardAbi
+import io.mo.xatype.compat.abiField
+
 /** Build host-native KeyData/KeyRow/KeyboardLayout objects, preserving the control row. */
-class Keyboard18HostLayout(loader: ClassLoader) {
-    private val key = Class.forName("ka.c", false, loader)
-    private val kind = Class.forName("ka.f", false, loader)
-    private val row = Class.forName("ka.e", false, loader)
-    val layout = Class.forName("ka.g", false, loader)
+class Keyboard18HostLayout(loader: ClassLoader, private val abi: KeyboardAbi = KeyboardAbi.require(loader, HostSymbols.KEYBOARD_LAYOUT)) {
+    private val key = abi.type("ka.c")
+    private val kind = abi.type("ka.f")
+    private val row = abi.type("ka.e")
+    val layout = abi.type("ka.g")
     private val int = Int::class.javaPrimitiveType!!
     private val float = Float::class.javaPrimitiveType!!
     private val bool = Boolean::class.javaPrimitiveType!!
@@ -18,8 +22,8 @@ class Keyboard18HostLayout(loader: ClassLoader) {
         java.lang.Float::class.java, java.lang.Float::class.java, bool, java.lang.Float::class.java, bool)
     private val charKind = kind.enumConstants.single { (it as Enum<*>).name == "CHAR" }
     private val gapKind = kind.enumConstants.single { (it as Enum<*>).name == "GAP" }
-    private val fields = key.declaredFields.associateBy { it.name }.onEach { it.value.isAccessible = true }
-    private fun value(instance: Any, name: String): Any? = instance.javaClass.getDeclaredField(name)
+    private val fields = ('a'..'r').associate { it.toString() to abi.field(key, it.toString()) }.onEach { it.value.isAccessible = true }
+    private fun value(instance: Any, name: String): Any? = instance.javaClass.abiField(abi, name)
         .apply { isAccessible = true }.get(instance)
 
     /** Require the generated code/label/hint combination, so other layouts keep native styling. */

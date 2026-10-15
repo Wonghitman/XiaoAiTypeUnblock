@@ -4,6 +4,10 @@ import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
 import io.github.libxposed.api.XposedInterface
+import io.mo.xatype.compat.HostSymbols
+import io.mo.xatype.compat.KeyboardAbi
+import io.mo.xatype.compat.abiField
+import io.mo.xatype.compat.abiMethod
 import io.mo.xatype.keyboard.ShortcutSwipeGesture
 import io.mo.xatype.keyboard.ShortcutSwipeHostBridge
 import io.mo.xatype.util.XposedUtils
@@ -32,22 +36,23 @@ class ShortcutSwipeHostHook(private val enabled: () -> Boolean, private val keyb
     private var drawFailureReported = false
 
     fun install(module: XposedInterface, loader: ClassLoader) {
-        val bridge = ShortcutSwipeHostBridge(loader)
-        val renderer = Class.forName("z9.w5", false, loader).declaredMethods.single {
-            it.name == "a" && it.parameterCount == 30 && it.parameterTypes.first() == bridge.key
+        val abi = KeyboardAbi.require(loader, HostSymbols.KEYBOARD_SWIPE)
+        val bridge = ShortcutSwipeHostBridge(loader, abi)
+        val renderer = abi.namedMethods(abi.type("z9.w5"), "a").single {
+            it.parameterCount == 30 && it.parameterTypes.first() == bridge.key
         }
-        val text = Class.forName("p0.n", false, loader).declaredMethods.single {
-            it.name == "a" && it.parameterCount == 19 && it.parameterTypes[0] == String::class.java &&
+        val text = abi.namedMethods(abi.type("p0.n"), "a").single {
+            it.parameterCount == 19 && it.parameterTypes[0] == String::class.java &&
                 it.parameterTypes[1] == bridge.modifier
         }
-        val dispatch = Class.forName("d2.w", false, loader).getDeclaredMethod("dispatchTouchEvent", MotionEvent::class.java)
+        val dispatch = abi.type("d2.w").abiMethod(abi, "dispatchTouchEvent", MotionEvent::class.java)
         module.hook(renderer).intercept { chain ->
             if (drawFailureReported || !enabled()) return@intercept chain.proceed()
             val source = chain.getArg(0)!!
             val is18 = keyboard18()
             val action = bridge.action(source, is18) ?: return@intercept chain.proceed()
             val owner = bridge.view(chain.getArg(26)!!)
-            val id = "${is18}:${source.javaClass.getDeclaredField("a").getInt(source)}:${bridge.label(source)}"
+            val id = "${is18}:${source.javaClass.abiField(abi, "a").getInt(source)}:${bridge.label(source)}"
             val key = keys.getOrPut(owner) { LinkedHashMap() }.getOrPut(id) {
                 Key(WeakReference(owner), source, action, bridge.unwrap(chain.getArg(10)!!), bridge.progressState(), is18)
             }

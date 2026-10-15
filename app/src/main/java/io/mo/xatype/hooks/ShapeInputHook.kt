@@ -1,9 +1,12 @@
 package io.mo.xatype.hooks
 
 import android.content.Context
-import android.os.Build
 import android.os.Bundle
 import io.github.libxposed.api.XposedInterface
+import io.mo.xatype.compat.HostSymbols
+import io.mo.xatype.compat.KeyboardAbi
+import io.mo.xatype.compat.abiMethod
+import io.mo.xatype.keyboard.KeyboardChoice
 import io.mo.xatype.provider.ShapeContentProvider
 import io.mo.xatype.shape.ShapeDictionary
 import io.mo.xatype.shape.ShapeDictionaryCodec
@@ -11,28 +14,28 @@ import io.mo.xatype.shape.ShapeEngine
 import io.mo.xatype.shape.ShapeHostBridge
 import io.mo.xatype.shape.ShapeHostKeyAdapter
 import io.mo.xatype.shape.ShapeStore
-import io.mo.xatype.keyboard.KeyboardChoice
 import io.mo.xatype.util.XposedUtils
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
-/** Opt-in replacement of the PINYIN engine, scoped to the verified 21053 host ABI. */
+/** Opt-in replacement of the PINYIN engine, enabled only after the engine ABI resolves. */
 object ShapeInputHook {
     private val reports = Executors.newSingleThreadExecutor()
     private var loaded: Loaded? = null
     private data class Loaded(val settings: Bundle, val dictionary: ShapeDictionary)
 
     fun install(module: XposedInterface, loader: ClassLoader) {
+        val abi = KeyboardAbi.require(loader, HostSymbols.KEYBOARD_ENGINE)
         // A missing/mismatched class leaves the original factory untouched.
-        val bridge = ShapeHostBridge(loader)
-        val manager = Class.forName("ab.x0", false, loader)
-        val service = Class.forName("com.mi.ime.MiInputMethodService", false, loader)
+        val bridge = ShapeHostBridge(loader, abi)
+        val manager = abi.type("ab.x0")
+        val service = abi.type("com.mi.ime.MiInputMethodService")
         val contextField = manager.declaredFields.single { it.type == service }.apply { isAccessible = true }
-        val factory = manager.getDeclaredMethod("b", bridge.engineType)
+        val factory = manager.abiMethod(abi, "b", bridge.engineType)
         require(factory.returnType == bridge.baseInterface)
-        val keys = ShapeHostKeyAdapter(loader, bridge)
-        val keyHandler = Class.forName("ab.f1", false, loader).getDeclaredMethod("c", keys.keyClass, keys.callbacksClass)
-        val macros = Class.forName("ab.s0", false, loader).getDeclaredMethod("l", bridge.baseInterface)
+        val keys = ShapeHostKeyAdapter(loader, bridge, abi)
+        val keyHandler = abi.type("ab.f1").abiMethod(abi, "c", keys.keyClass, keys.callbacksClass)
+        val macros = abi.type("ab.s0").abiMethod(abi, "l", bridge.baseInterface)
         require(keyHandler.returnType == Void.TYPE && macros.returnType == Void.TYPE)
 
         // Bypass phonetic touch correction only for our own session and supported keys.
@@ -56,10 +59,7 @@ object ShapeInputHook {
                     XposedUtils.logError(module, "Shape dictionary unavailable; keeping original engine", it)
                 }.getOrNull()
                 if (config == null || !config.settings.getBoolean(ShapeStore.SHOW_IN_PICKER)) chain.proceed()
-                else if (version(context) != 21053L) {
-                    report(context, config.settings, "未接入：此原型仅适配 0.2.1053；当前使用原拼音引擎")
-                    chain.proceed()
-                } else {
+                else {
                     runCatching {
                         val engine = ShapeEngine(config.dictionary, ShapeStore.rules(config.settings, config.dictionary.maxCodeLength))
                         val firstInput = AtomicBoolean(false)
@@ -73,7 +73,7 @@ object ShapeInputHook {
             }
         }
         module.deoptimize(factory)
-        XposedUtils.log(module, "Shape input ABI ready (opt-in, host 21053)")
+        XposedUtils.log(module, "Shape input ABI ready (opt-in, resolved ABI)")
     }
 
     @Synchronized
@@ -99,11 +99,4 @@ object ShapeInputHook {
         }
     }
 
-    @Suppress("DEPRECATION")
-    private fun version(context: Context): Long {
-        return runCatching {
-            val info = context.packageManager.getPackageInfo("com.xiaomi.type", 0)
-            if (Build.VERSION.SDK_INT >= 28) info.longVersionCode else info.versionCode.toLong()
-        }.getOrDefault(-1L)
-    }
 }

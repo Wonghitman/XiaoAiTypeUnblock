@@ -1,27 +1,32 @@
 package io.mo.xatype.keyboard18
 
 import io.github.libxposed.api.XposedInterface
+import io.mo.xatype.compat.HostSymbols
+import io.mo.xatype.compat.KeyboardAbi
+import io.mo.xatype.compat.abiField
+import io.mo.xatype.compat.abiMethod
 
-/** Host 21053 Compose hooks scoped to one generated letter key at a time. */
+/** Resolved Compose hooks scoped to one generated letter key at a time. */
 class Keyboard18HostAppearance(private val layouts: Keyboard18HostLayout) {
     private val drawing = ThreadLocal<Boolean>()
 
     fun install(module: XposedInterface, loader: ClassLoader) {
-        val key = Class.forName("ka.c", false, loader)
-        val composer = Class.forName("s0.p", false, loader)
-        val modifier = Class.forName("e1.o", false, loader)
-        val alignment = Class.forName("e1.g", false, loader)
-        val renderer = Class.forName("z9.w5", false, loader).declaredMethods.single {
-            it.name == "a" && it.parameterCount == 30 && it.parameterTypes.first() == key
+        val abi = KeyboardAbi.require(loader, HostSymbols.KEYBOARD_LETTER_APPEARANCE)
+        val key = abi.type("ka.c")
+        val composer = abi.type("s0.p")
+        val modifier = abi.type("e1.o")
+        val alignment = abi.type("e1.g")
+        val renderer = abi.namedMethods(abi.type("z9.w5"), "a").single {
+            it.parameterCount == 30 && it.parameterTypes.first() == key
         }
-        val sizing = Class.forName("ma.v", false, loader)
-        val typography = sizing.getDeclaredMethod("Q", Int::class.javaPrimitiveType, composer)
-        val withHint = sizing.getDeclaredMethod("h0", composer)
-        val box = Class.forName("androidx.compose.foundation.layout.a", false, loader)
-        val align = box.getDeclaredMethod("a", modifier, alignment)
-        val positions = Class.forName("e1.b", false, loader)
-        val topCenter = positions.getDeclaredField("b").get(null)
-        val topEnd = positions.getDeclaredField("c").get(null)
+        val sizing = abi.type("ma.v")
+        val typography = sizing.abiMethod(abi, "Q", Int::class.javaPrimitiveType, composer)
+        val withHint = sizing.abiMethod(abi, "h0", composer)
+        val box = abi.type("androidx.compose.foundation.layout.a")
+        val align = box.abiMethod(abi, "a", modifier, alignment)
+        val positions = abi.type("e1.b")
+        val topCenter = positions.abiField(abi, "b").get(null)
+        val topEnd = positions.abiField(abi, "c").get(null)
 
         module.hook(renderer).intercept { chain ->
             val previous = drawing.get()

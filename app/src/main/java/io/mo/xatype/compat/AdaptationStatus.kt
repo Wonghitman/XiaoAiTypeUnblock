@@ -17,6 +17,13 @@ object AdaptationStatus {
 
     /** User-facing feature behind each symbol key. */
     private val FEATURES = mapOf(
+        HostSymbols.KEYBOARD_ENGINE to "虎码/五笔与18键引擎",
+        HostSymbols.KEYBOARD_LAYOUT to "18键布局",
+        HostSymbols.KEYBOARD_ACTIONS to "快捷操作输入收尾",
+        HostSymbols.KEYBOARD_PICKER to "独立键盘选择",
+        HostSymbols.KEYBOARD_SETTINGS to "原生键盘设置入口",
+        HostSymbols.KEYBOARD_SWIPE to "字母下滑快捷操作",
+        HostSymbols.KEYBOARD_LETTER_APPEARANCE to "18键字母排版",
         HostSymbols.AI_SAFETY_PARSERS to "AI 表达安全拦截解除",
         HostSymbols.VOICE_MODERATION to "语音转写风控解除",
         HostSymbols.ASR_ERROR_MAPPER to "语音转写风控解除",

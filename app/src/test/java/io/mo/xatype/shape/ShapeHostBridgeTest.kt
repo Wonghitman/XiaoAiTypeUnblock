@@ -5,7 +5,7 @@ import org.junit.Test
 import z8.p
 
 class ShapeHostBridgeTest {
-    private val bridge = ShapeHostBridge(javaClass.classLoader!!)
+    private val bridge = ShapeHostBridge(javaClass.classLoader!!, io.mo.xatype.compat.KeyboardAbi.reference(javaClass.classLoader!!))
     private fun proxy(count: Int = 30): p = bridge.create(ShapeEngine(
         ShapeDictionary("测试", (1..count).map { ShapeEntry("候选$it", "a") }), ShapeRules())) as p
 

@@ -58,7 +58,7 @@ Invoke-Adb shell chmod 444 "$remote/probe.dex" "$remote/module.apk" "$remote/tar
 # Android requires dynamically loaded DEX to be read-only. Root is used solely
 # to execute the probe and read these temporary APKs on the authorized device.
 $command = "CLASSPATH=$remote/probe.dex:$remote/module.apk app_process /system/bin TargetCompatibilityProbe $remote/target.apk $remote $ExpectedProfile"
-$result = @(Invoke-Adb shell su -c $command)
+$result = @(Invoke-Adb shell su -c "'$command'")
 $result | Tee-Object -FilePath "$output\result.txt"
 if (!($result -match "^PASS profile=$ExpectedProfile checks=\d+$")) {
     throw "Probe failed. See $output\result.txt"
