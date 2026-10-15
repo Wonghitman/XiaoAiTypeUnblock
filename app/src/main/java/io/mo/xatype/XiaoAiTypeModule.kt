@@ -16,6 +16,7 @@ import io.mo.xatype.hooks.InputDiagnosticsHook
 import io.mo.xatype.hooks.ShapeInputHook
 import io.mo.xatype.hooks.Keyboard18Hook
 import io.mo.xatype.hooks.KeyboardSelectionHook
+import io.mo.xatype.hooks.KeyboardShortcutsHook
 import io.mo.xatype.hooks.KeyboardStyleHook
 import io.mo.xatype.hooks.KeyboardHeightUnblockHook
 import io.mo.xatype.hooks.KeyboardBottomSpacingHook
@@ -110,6 +111,12 @@ class XiaoAiTypeModule : XposedModule() {
             Keyboard18Hook.install(this, classLoader)
         } catch (t: Throwable) {
             XposedUtils.logError(this, "18-key keyboard unavailable for this host ABI", t)
+        }
+
+        try {
+            KeyboardShortcutsHook.install(this, classLoader)
+        } catch (t: Throwable) {
+            XposedUtils.logError(this, "Letter shortcuts unavailable for this host ABI", t)
         }
 
         if (BuildConfig.INPUT_DIAGNOSTICS) {

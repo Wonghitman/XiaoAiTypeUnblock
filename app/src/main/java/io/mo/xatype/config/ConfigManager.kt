@@ -19,6 +19,7 @@ object ConfigManager {
     const val KEY_AI_ABILITY_UNLOCK = "pref_ai_ability_unlock"
     const val KEY_TELEMETRY_BLOCK = "pref_telemetry_block"
     const val KEY_KEYBOARD_HEIGHT_UNBLOCK = "pref_keyboard_height_unblock"
+    const val KEY_KEYBOARD_SHORTCUTS = "pref_keyboard_shortcuts"
     const val KEY_BOTTOM_SPACING_ENABLED = "pref_bottom_spacing_enabled"
     const val KEY_BOTTOM_SPACING = "pref_bottom_spacing" // 0 to 100 dp; global geometry
     const val KEY_VERBOSE_LOG = "pref_verbose_log"
@@ -61,6 +62,7 @@ object ConfigManager {
     @Volatile private var cachedAiAbilityUnlock = false
     @Volatile private var cachedTelemetryBlock = false
     @Volatile private var cachedKeyboardHeightUnblock = false
+    @Volatile private var cachedKeyboardShortcuts = false
     @Volatile private var cachedBottomSpacingEnabled = false
     @Volatile private var cachedBottomSpacing = 0
     @Volatile private var cachedVerboseLog = false
@@ -115,6 +117,7 @@ object ConfigManager {
                 cachedAiAbilityUnlock = bundle.getBoolean(KEY_AI_ABILITY_UNLOCK, false)
                 cachedTelemetryBlock = bundle.getBoolean(KEY_TELEMETRY_BLOCK, false)
                 cachedKeyboardHeightUnblock = bundle.getBoolean(KEY_KEYBOARD_HEIGHT_UNBLOCK, false)
+                cachedKeyboardShortcuts = bundle.getBoolean(KEY_KEYBOARD_SHORTCUTS, false)
                 cachedBottomSpacingEnabled = bundle.getBoolean(KEY_BOTTOM_SPACING_ENABLED, false)
                 cachedBottomSpacing = bundle.getInt(KEY_BOTTOM_SPACING, 0).coerceIn(0, 100)
                 cachedVerboseLog = bundle.getBoolean(KEY_VERBOSE_LOG, false)
@@ -197,6 +200,11 @@ object ConfigManager {
     fun isKeyboardHeightUnblockEnabled(): Boolean {
         if (hasSyncedFromProvider) return cachedKeyboardHeightUnblock
         return remotePrefs?.getBoolean(KEY_KEYBOARD_HEIGHT_UNBLOCK, false) ?: cachedKeyboardHeightUnblock
+    }
+
+    fun isKeyboardShortcutsEnabled(): Boolean {
+        if (hasSyncedFromProvider) return cachedKeyboardShortcuts
+        return remotePrefs?.getBoolean(KEY_KEYBOARD_SHORTCUTS, false) ?: cachedKeyboardShortcuts
     }
 
     fun getCornerRadius(): Int {

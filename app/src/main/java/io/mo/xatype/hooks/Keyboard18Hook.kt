@@ -6,8 +6,9 @@ import android.app.Instrumentation
 import android.inputmethodservice.InputMethodService
 import android.os.Build
 import android.os.Bundle
-import android.view.KeyEvent
-import android.view.inputmethod.ExtractedTextRequest
+import io.mo.xatype.config.ConfigManager
+import io.mo.xatype.keyboard.KeyboardShortcutActions
+import io.mo.xatype.keyboard.KeyboardShortcuts
 import io.github.libxposed.api.XposedInterface
 import io.mo.xatype.keyboard18.Keyboard18Dictionary
 import io.mo.xatype.keyboard18.Keyboard18Engine
@@ -116,9 +117,11 @@ object Keyboard18Hook {
             val enabled = loaded?.dictionary != null && service?.let {
                 KeyboardSelectionHook.selected(it) == KeyboardChoice.KEYBOARD18
             } == true
-            if (enabled && label in Keyboard18Keys.shortcuts.values) {
-                flush()
-                shortcut(session?.service ?: service, label)
+            if (enabled && label in KeyboardShortcuts.actions) {
+                if (ConfigManager.isKeyboardShortcutsEnabled()) runCatching {
+                    flush()
+                    (session?.service ?: service)?.currentInputConnection?.let { KeyboardShortcutActions.perform(it, label) }
+                }.onFailure { XposedUtils.logError(module, "18-key shortcut failed: $label", it) }
                 null
             } else if (session == null) chain.proceed()
             else if (kind == "BACKSPACE" && session.engine.raw.isNotEmpty()) {
@@ -191,7 +194,7 @@ object Keyboard18Hook {
             }.getOrNull()
             val english = chain.getArg(3) == true
             if (config?.dictionary == null || (!english && (!chineseReady || layoutMode != "PINYIN"))) original else runCatching {
-                layouts.rebuild(original, english).also { rebuilt ->
+                layouts.rebuild(original, english, ConfigManager.isKeyboardShortcutsEnabled()).also { rebuilt ->
                     if (!layoutReported) {
                         layoutReported = true
                         report(context, config.settings, if (rebuilt !== original)
@@ -251,28 +254,6 @@ object Keyboard18Hook {
                     putString(Keyboard18Store.STATUS, message)
                 })
             }.onFailure { XposedUtils.logWarn(module, "Unable to deliver 18-key failure status: ${it.javaClass.simpleName}") }
-        }
-    }
-    private fun shortcut(service: InputMethodService?, action: String) {
-        val connection = service?.currentInputConnection ?: return
-        when (action) {
-            "全选" -> connection.performContextMenuAction(android.R.id.selectAll)
-            "复制" -> connection.performContextMenuAction(android.R.id.copy)
-            "粘贴" -> connection.performContextMenuAction(android.R.id.paste)
-            "段首", "段尾" -> {
-                val extracted = connection.getExtractedText(ExtractedTextRequest(), 0)
-                if (extracted != null) {
-                    val text = extracted.text.toString()
-                    val caret = extracted.selectionStart.coerceIn(0, text.length)
-                    val position = if (action == "段首") text.lastIndexOf('\n', (caret - 1).coerceAtLeast(-1)) + 1
-                        else text.indexOf('\n', caret).let { if (it < 0) text.length else it }
-                    connection.setSelection(extracted.startOffset + position, extracted.startOffset + position)
-                } else {
-                    val key = if (action == "段首") KeyEvent.KEYCODE_MOVE_HOME else KeyEvent.KEYCODE_MOVE_END
-                    connection.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, key))
-                    connection.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, key))
-                }
-            }
         }
     }
 }

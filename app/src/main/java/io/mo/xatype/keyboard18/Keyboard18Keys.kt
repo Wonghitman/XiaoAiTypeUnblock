@@ -8,7 +8,6 @@ object Keyboard18Keys {
     private const val BASE = 0xE100
     private val representatives = ('a'..'z').associateWith { letter -> groups.first { letter in it }.first() }
     val hints = listOf("#", "1", "2", "3", "/", "-", "=", "!", "4", "5", "6", "()", "?", "@", "7", "8", "9", "0")
-    val shortcuts = mapOf("z" to "全选", "xc" to "复制", "v" to "粘贴", "bn" to "段首", "m" to "段尾")
     fun code(group: String) = BASE + groups.indexOf(group).also { require(it >= 0) }
     fun group(code: Int): String? = groups.getOrNull(code - BASE)
     fun representative(letter: Char): Char = representatives.getValue(letter)

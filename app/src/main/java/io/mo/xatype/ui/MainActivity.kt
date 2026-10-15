@@ -34,6 +34,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var switchAiAbilityUnlock: SwitchCompat
     private lateinit var switchTelemetryBlock: SwitchCompat
     private lateinit var switchKeyboardHeightUnblock: SwitchCompat
+    private lateinit var switchKeyboardShortcuts: SwitchCompat
     private lateinit var switchBottomSpacing: SwitchCompat
     private lateinit var sbBottomSpacing: SeekBar
     private lateinit var tvBottomSpacingValue: TextView
@@ -81,6 +82,7 @@ class MainActivity : AppCompatActivity() {
         switchAiAbilityUnlock = findViewById(R.id.switchAiAbilityUnlock)
         switchTelemetryBlock = findViewById(R.id.switchTelemetryBlock)
         switchKeyboardHeightUnblock = findViewById(R.id.switchKeyboardHeightUnblock)
+        switchKeyboardShortcuts = findViewById(R.id.switchKeyboardShortcuts)
         switchBottomSpacing = findViewById(R.id.switchBottomSpacing)
         sbBottomSpacing = findViewById(R.id.sbBottomSpacing)
         tvBottomSpacingValue = findViewById(R.id.tvBottomSpacingValue)
@@ -215,6 +217,13 @@ class MainActivity : AppCompatActivity() {
         switchKeyboardHeightUnblock.isChecked = prefs.getBoolean(ConfigManager.KEY_KEYBOARD_HEIGHT_UNBLOCK, false)
         switchKeyboardHeightUnblock.setOnCheckedChangeListener { _, isChecked ->
             prefs.edit().putBoolean(ConfigManager.KEY_KEYBOARD_HEIGHT_UNBLOCK, isChecked).apply()
+            showRestartHint()
+        }
+
+        switchKeyboardShortcuts.isChecked = prefs.getBoolean(ConfigManager.KEY_KEYBOARD_SHORTCUTS, false)
+        switchKeyboardShortcuts.setOnCheckedChangeListener { view, checked ->
+            prefs.edit().putBoolean(ConfigManager.KEY_KEYBOARD_SHORTCUTS, checked).apply()
+            view.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
             showRestartHint()
         }
 

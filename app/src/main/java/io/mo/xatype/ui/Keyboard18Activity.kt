@@ -27,6 +27,8 @@ import androidx.core.widget.NestedScrollView
 import io.mo.xatype.keyboard18.Keyboard18Dictionary
 import io.mo.xatype.keyboard18.Keyboard18Engine
 import io.mo.xatype.keyboard18.Keyboard18Keys
+import io.mo.xatype.config.ConfigManager
+import io.mo.xatype.keyboard.KeyboardShortcuts
 import io.mo.xatype.keyboard18.Keyboard18Store
 import io.mo.xatype.keyboard18.Keyboard18Style
 import java.util.concurrent.Executors
@@ -132,7 +134,7 @@ class Keyboard18Activity : AppCompatActivity() {
                     if (english || uppercase) { flush(); insert(if (uppercase) group.first().uppercaseChar().toString() else group.first().toString()) }
                     else showResult(decoder.input(Keyboard18Keys.code(group).toChar()))
                 }
-                button.contentDescription = "${group.uppercase()}键，长按选择字母或快捷操作"
+                button.contentDescription = "${group.uppercase()}键，长按选择字母和符号；快捷操作由首页独立开关控制"
                 button.setOnLongClickListener { popup(group); true }
                 letterButtons[group] = button
                 row.addView(button, keyParams(Keyboard18Style.weight(group)))
@@ -253,7 +255,9 @@ class Keyboard18Activity : AppCompatActivity() {
     private fun popup(group: String) {
         val hint = Keyboard18Keys.hints[Keyboard18Keys.groups.indexOf(group)]
         val values = group.map { if (uppercase) it.uppercaseChar().toString() else it.toString() } +
-            listOf(hint).filter { it.length == 1 } + listOfNotNull(Keyboard18Keys.shortcuts[group])
+            listOf(hint).filter { it.length == 1 } + listOfNotNull(KeyboardShortcuts.groups18[group].takeIf {
+                ConfigManager.getLocalPrefs(this).getBoolean(ConfigManager.KEY_KEYBOARD_SHORTCUTS, false)
+            })
         choices("${group.uppercase()}键", values) { selected ->
             when (selected) {
                 "全选" -> { flush(); output.selectAll() }
@@ -261,8 +265,7 @@ class Keyboard18Activity : AppCompatActivity() {
                 "粘贴" -> { flush(); output.onTextContextMenuItem(android.R.id.paste) }
                 "段首", "段尾" -> {
                     flush(); val text = output.text.toString(); val caret = output.selectionStart.coerceAtLeast(0)
-                    output.setSelection(if (selected == "段首") text.lastIndexOf('\n', caret - 1) + 1
-                        else text.indexOf('\n', caret).let { if (it < 0) text.length else it })
+                    output.setSelection(KeyboardShortcuts.paragraphPosition(text, caret, 0, selected == "段尾"))
                 }
                 else -> if (!english && !uppercase && selected.length == 1 && selected[0] in 'a'..'z')
                     engine?.input(selected.single())?.let(::showResult) else literal(selected)

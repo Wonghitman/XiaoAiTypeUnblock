@@ -1,5 +1,7 @@
 package io.mo.xatype.keyboard18
 
+import io.mo.xatype.keyboard.KeyboardShortcuts
+
 /** Build host-native KeyData/KeyRow/KeyboardLayout objects, preserving the control row. */
 class Keyboard18HostLayout(loader: ClassLoader) {
     private val key = Class.forName("ka.c", false, loader)
@@ -33,7 +35,7 @@ class Keyboard18HostLayout(loader: ClassLoader) {
         if (label != Keyboard18Style.label(group) && label != Keyboard18Style.label(group, true)) return null
         return group.takeIf { fields.getValue("g").get(instance) == Keyboard18Keys.hints[Keyboard18Keys.groups.indexOf(group)] }
     }
-    fun rebuild(original: Any, english: Boolean): Any {
+    fun rebuild(original: Any, english: Boolean, shortcuts: Boolean): Any {
         if (value(original, "a") != "qwerty") return original
         @Suppress("UNCHECKED_CAST")
         val rows = value(original, "c") as List<Any>
@@ -68,7 +70,8 @@ class Keyboard18HostLayout(loader: ClassLoader) {
             val keys = groups.map { group ->
                 val hint = Keyboard18Keys.hints[Keyboard18Keys.groups.indexOf(group)]
                 val popup = group.map { if (uppercase) it.uppercaseChar().toString() else it.toString() } +
-                    listOf(hint).filter { it.length == 1 } + listOfNotNull(Keyboard18Keys.shortcuts[group])
+                    listOf(hint).filter { it.length == 1 } +
+                    listOfNotNull(KeyboardShortcuts.groups18[group].takeIf { shortcuts })
                 newKey(if (english) (if (uppercase) group.first().uppercaseChar() else group.first()).code else Keyboard18Keys.code(group),
                     Keyboard18Style.label(group, uppercase), Keyboard18Style.weight(group), hint, popup)
             }.toMutableList()
