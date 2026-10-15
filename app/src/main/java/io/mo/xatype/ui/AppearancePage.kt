@@ -6,6 +6,7 @@ import android.content.SharedPreferences
 import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.graphics.Color
+import android.graphics.Outline
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
@@ -16,8 +17,11 @@ import android.text.TextWatcher
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
+import android.view.ViewOutlineProvider
 import android.view.inputmethod.InputMethodManager
 import android.widget.FrameLayout
+import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.RadioGroup
@@ -37,13 +41,16 @@ import io.mo.xatype.hooks.BackgroundOpacity
 import io.mo.xatype.ui.KeyboardPreviewView.Focus
 
 /**
- * The appearance tab. Every option opens a floating panel, and the fixed
- * preview at the bottom highlights the part that option changes.
+ * The appearance tab. Every option opens an edit panel, and the floating
+ * preview highlights the part that option changes. The preview can be
+ * dragged anywhere, resized or folded, and the panel makes room for it.
  */
 class AppearancePage(
     private val activity: AppCompatActivity,
     private val root: View,
-    savedInstanceState: Bundle?
+    savedInstanceState: Bundle?,
+    /** Called after a change that applies once the input method restarts. */
+    private val onConfigChanged: () -> Unit
 ) : ContextWrapper(activity) {
 
     private class Summary(val text: String, val color: Int? = null)
@@ -59,9 +66,17 @@ class AppearancePage(
     private class Row(val option: Option, val view: View, val value: TextView, val swatch: View)
 
     private lateinit var prefs: SharedPreferences
+    private val uiPrefs: SharedPreferences = activity.getSharedPreferences(UI_PREFS, Context.MODE_PRIVATE)
+    private val kit = SettingsKit(activity)
     private var editingDark = false
     private lateinit var preview: KeyboardPreviewView
     private lateinit var previewHint: TextView
+    private lateinit var floating: FloatingPreviewCard
+    private lateinit var sizeButton: ImageButton
+    private lateinit var collapseButton: ImageButton
+    private lateinit var options: LinearLayout
+    private var previewLarge = true
+    private var previewCollapsed = false
     private lateinit var overlay: FrameLayout
     private lateinit var panelCard: View
     private lateinit var panelTitle: TextView
@@ -100,18 +115,18 @@ class AppearancePage(
         panelTitle = root.findViewById(R.id.tvPanelTitle)
         panelContent = root.findViewById(R.id.panelContent)
         overlay.setOnClickListener { closePanel() }
-        preview.setOnClickListener { if (overlay.visibility == View.VISIBLE) closePanel() }
         activity.onBackPressedDispatcher.addCallback(activity, closePanelOnBack)
         // While typing a hex value the real keyboard shows the result, so the
-        // drawn preview gives its space to the panel.
-        val previewContainer = root.findViewById<View>(R.id.previewContainer)
+        // drawn preview gets out of the panel's way.
         root.viewTreeObserver.addOnGlobalLayoutListener {
             val typing = ViewCompat.getRootWindowInsets(root)?.isVisible(WindowInsetsCompat.Type.ime()) == true
-            val visibility = if (typing) View.GONE else View.VISIBLE
-            if (previewContainer.visibility != visibility) previewContainer.visibility = visibility
+            val visibility = if (typing) View.INVISIBLE else View.VISIBLE
+            if (floating.visibility != visibility) floating.visibility = visibility
         }
 
-        buildOptions(root.findViewById(R.id.layoutOptions))
+        options = root.findViewById(R.id.layoutOptions)
+        initFloatingPreview()
+        buildOptions(options)
         prefs.registerOnSharedPreferenceChangeListener(prefsListener)
         refresh()
     }
@@ -151,15 +166,17 @@ class AppearancePage(
     // ---------------------------------------------------------------- options
 
     private fun buildOptions(root: LinearLayout) {
+        root.addView(kit.sectionHeader("总开关", first = true))
         root.addView(card().apply {
             val row = horizontalRow()
-            row.addView(titleBlock("启用键盘外观个性化", "关闭时键盘保持原生样式"),
+            row.addView(titleBlock("启用键盘外观个性化", "关闭时键盘保持原生样式；预览卡片可拖动、缩放或收起"),
                 LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
             styleSwitch = SwitchCompat(context).apply {
                 isChecked = prefs.getBoolean(ConfigManager.KEY_STYLE_ENABLED, false)
                 setOnCheckedChangeListener { _, checked ->
                     prefs.edit().putBoolean(ConfigManager.KEY_STYLE_ENABLED, checked).apply()
-                    showRestartHint()
+                    SettingsKit.confirmHaptic(this)
+                    onConfigChanged()
                 }
             }
             row.addView(styleSwitch)
@@ -427,6 +444,106 @@ class AppearancePage(
             "按键和候选字可能看不清。建议开启可读性底色并调到 30% 以上。"
     }
 
+    // ------------------------------------------------------- floating preview
+
+    private fun initFloatingPreview() {
+        floating = root.findViewById(R.id.floatingPreview)
+        sizeButton = root.findViewById(R.id.btnPreviewSize)
+        collapseButton = root.findViewById(R.id.btnPreviewCollapse)
+        previewLarge = uiPrefs.getBoolean(KEY_PREVIEW_LARGE, true)
+        previewCollapsed = uiPrefs.getBoolean(KEY_PREVIEW_COLLAPSED, false)
+
+        floating.clipToOutline = true
+        preview.outlineProvider = object : ViewOutlineProvider() {
+            override fun getOutline(view: View, outline: Outline) {
+                outline.setRoundRect(0, 0, view.width, view.height, dp(14).toFloat())
+            }
+        }
+        preview.clipToOutline = true
+
+        sizeButton.setOnClickListener {
+            previewLarge = !previewLarge
+            uiPrefs.edit().putBoolean(KEY_PREVIEW_LARGE, previewLarge).apply()
+            SettingsKit.tickHaptic(it)
+            applyPreviewSize()
+        }
+        collapseButton.setOnClickListener {
+            SettingsKit.tickHaptic(it)
+            setPreviewCollapsed(!previewCollapsed)
+        }
+        floating.onTap = { if (previewCollapsed) setPreviewCollapsed(false) }
+        floating.onSettled = { if (overlay.visibility == View.VISIBLE) placePanel() }
+        floating.bindPosition(uiPrefs)
+
+        root.addOnLayoutChangeListener { _, l, _, r, _, oldL, _, oldR, _ ->
+            if (r - l != oldR - oldL) root.post { applyPreviewSize() }
+        }
+        // Let the last option scroll clear of the preview.
+        floating.addOnLayoutChangeListener { _, _, t, _, b, _, oldT, _, oldB ->
+            if (b - t != oldB - oldT) {
+                options.setPadding(options.paddingLeft, options.paddingTop, options.paddingRight, b - t + dp(32))
+            }
+        }
+        applyPreviewSize()
+    }
+
+    private fun setPreviewCollapsed(collapsed: Boolean) {
+        previewCollapsed = collapsed
+        uiPrefs.edit().putBoolean(KEY_PREVIEW_COLLAPSED, collapsed).apply()
+        applyPreviewSize()
+        if (overlay.visibility == View.VISIBLE) floating.post { placePanel() }
+    }
+
+    private fun applyPreviewSize() {
+        val parentWidth = root.width
+        if (parentWidth > 0) {
+            val margin = resources.getDimensionPixelSize(R.dimen.floating_margin)
+            val available = parentWidth - 2 * margin
+            val width = when {
+                previewCollapsed -> minOf(dp(200), available)
+                previewLarge -> minOf(available, dp(560))
+                else -> minOf(maxOf((parentWidth * 0.6f).toInt(), dp(220)), dp(360), available)
+            }
+            floating.layoutParams = floating.layoutParams.apply { this.width = width }
+            preview.layoutParams = preview.layoutParams.apply {
+                height = ((width - dp(12)) * PREVIEW_ASPECT).toInt()
+            }
+        }
+        preview.visibility = if (previewCollapsed) View.GONE else View.VISIBLE
+        sizeButton.visibility = if (previewCollapsed) View.GONE else View.VISIBLE
+        floating.setPadding(0, 0, 0, if (previewCollapsed) 0 else dp(6))
+        sizeButton.setImageResource(if (previewLarge) R.drawable.ic_close_fullscreen else R.drawable.ic_open_in_full)
+        sizeButton.contentDescription = if (previewLarge) "缩小预览" else "放大预览"
+        collapseButton.setImageResource(if (previewCollapsed) R.drawable.ic_expand_less else R.drawable.ic_expand_more)
+        collapseButton.contentDescription = if (previewCollapsed) "展开预览" else "收起预览"
+    }
+
+    /** Puts the edit panel on whichever side of the preview has more room. */
+    private fun placePanel() {
+        val lp = panelCard.layoutParams as FrameLayout.LayoutParams
+        val margin = dp(16)
+        lp.gravity = Gravity.CENTER
+        lp.setMargins(margin, margin, margin, margin)
+        val height = root.height
+        if (floating.visibility == View.VISIBLE && !previewCollapsed && height > 0 && floating.height > 0) {
+            val gap = dp(8)
+            val top = floating.translationY.toInt()
+            val bottom = top + floating.height
+            val above = top - gap - margin
+            val below = height - bottom - gap - margin
+            if (maxOf(above, below) >= dp(MIN_PANEL_HEIGHT_DP)) {
+                if (above >= below) {
+                    lp.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                    lp.bottomMargin = height - top + gap
+                } else {
+                    lp.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+                    lp.topMargin = bottom + gap
+                }
+            }
+        }
+        panelCard.layoutParams = lp
+    }
+
     // ------------------------------------------------------------ panel state
 
     private fun openPanel(row: Row) {
@@ -439,6 +556,8 @@ class AppearancePage(
         row.option.build(panelContent)
         panelChanged = false
         preview.focus = row.option.focus
+        if (previewCollapsed) setPreviewCollapsed(false)
+        placePanel()
         closePanelOnBack.isEnabled = true
         overlay.visibility = View.VISIBLE
         overlay.alpha = 0f
@@ -460,14 +579,14 @@ class AppearancePage(
             overlay.visibility = View.GONE
             panelContent.removeAllViews()
         }.start()
-        if (panelChanged) showRestartHint()
+        if (panelChanged) onConfigChanged()
     }
 
     private fun refresh() {
         val style = readStyle()
         preview.style = style
-        previewHint.text = "实时预览 · 正在编辑" + (if (editingDark) "深色" else "浅色") + "配置" +
-            if (!style.enabled) " · 个性化未启用，显示原生样式" else ""
+        previewHint.text = "编辑" + (if (editingDark) "深色" else "浅色") + "配置" +
+            if (!style.enabled) " · 未启用，显示原生样式" else ""
         rows.forEach { row ->
             val summary = row.option.summary()
             row.value.text = summary.text
@@ -504,28 +623,10 @@ class AppearancePage(
         )
     }
 
-    private var lastToastTime = 0L
-    private fun showRestartHint() {
-        val now = System.currentTimeMillis()
-        if (now - lastToastTime > 3000) {
-            lastToastTime = now
-            Toast.makeText(this, "配置已更新，重启超级小爱输入法生效", Toast.LENGTH_SHORT).show()
-        }
-    }
-
     // ------------------------------------------------------------- view kit
 
     private fun section(root: LinearLayout, title: String, options: List<Option>) {
-        root.addView(label(title, 13f, R.color.text_secondary).apply {
-            setTypeface(typeface, Typeface.BOLD)
-            setPadding(dp(4), dp(18), 0, dp(8))
-        })
-        val card = card()
-        options.forEachIndexed { index, option ->
-            if (index > 0) card.addView(divider())
-            card.addView(optionRow(option))
-        }
-        root.addView(card)
+        kit.group(root, title, options.map { optionRow(it) })
     }
 
     private fun optionRow(option: Option): View {
@@ -540,45 +641,22 @@ class AppearancePage(
             maxLines = 1
         }
         row.addView(value)
-        row.addView(label("›", 20f, R.color.text_secondary))
+        row.addView(ImageView(this).apply {
+            setImageResource(R.drawable.ic_shape_chevron)
+            imageTintList = ColorStateList.valueOf(getColor(R.color.text_secondary))
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }, LinearLayout.LayoutParams(dp(20), dp(20)))
         val item = Row(option, row, value, swatch)
         row.setOnClickListener { openPanel(item) }
         rows += item
         return row
     }
 
-    private fun card() = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        setBackgroundResource(R.drawable.bg_card)
-    }
+    private fun card() = kit.card()
 
-    private fun horizontalRow() = LinearLayout(this).apply {
-        orientation = LinearLayout.HORIZONTAL
-        gravity = Gravity.CENTER_VERTICAL
-        minimumHeight = dp(56)
-        setPadding(dp(14), dp(12), dp(14), dp(12))
-        isClickable = true
-        isFocusable = true
-        val outValue = TypedValue()
-        theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
-        foreground = getDrawable(outValue.resourceId)
-    }
+    private fun horizontalRow() = kit.row()
 
-    private fun titleBlock(title: String, subtitle: String) = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        addView(label(title, 15f, R.color.text_primary).apply { setTypeface(typeface, Typeface.BOLD) })
-        if (subtitle.isNotEmpty()) {
-            addView(label(subtitle, 11f, R.color.text_secondary).apply { setPadding(0, dp(2), 0, 0) })
-        }
-    }
-
-    private fun divider() = View(this).apply {
-        setBackgroundColor(getColor(R.color.card_stroke))
-        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1)).apply {
-            marginStart = dp(14)
-            marginEnd = dp(14)
-        }
-    }
+    private fun titleBlock(title: String, subtitle: String) = kit.titleBlock(title, subtitle)
 
     private fun label(text: String, size: Float, colorRes: Int) = TextView(this).apply {
         this.text = text
@@ -811,6 +889,11 @@ class AppearancePage(
 
     companion object {
         private const val STATE_EDITING_DARK = "editing_dark"
+        private const val UI_PREFS = "ui_state"
+        private const val KEY_PREVIEW_LARGE = "floating_preview_large"
+        private const val KEY_PREVIEW_COLLAPSED = "floating_preview_collapsed"
+        private const val PREVIEW_ASPECT = 0.6f
+        private const val MIN_PANEL_HEIGHT_DP = 260
 
         fun parseColor(value: String?): Int? = value?.trim()?.takeIf { it.isNotEmpty() }?.let {
             try {

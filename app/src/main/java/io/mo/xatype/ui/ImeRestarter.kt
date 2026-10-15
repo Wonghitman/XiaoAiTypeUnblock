@@ -6,7 +6,7 @@ import java.io.DataOutputStream
 
 /** Force-stops the input method processes through root so new settings load. */
 internal object ImeRestarter {
-    fun restart(activity: Activity, onFinished: (() -> Unit)? = null) {
+    fun restart(activity: Activity, onFinished: ((success: Boolean) -> Unit)? = null) {
         Thread {
             val success = try {
                 val process = Runtime.getRuntime().exec("su")
@@ -21,7 +21,7 @@ internal object ImeRestarter {
                 false
             }
             activity.runOnUiThread {
-                onFinished?.invoke()
+                onFinished?.invoke(success)
                 Toast.makeText(
                     activity,
                     if (success) "超级小爱输入法已成功通过 Root 权限重启！" else "请授权 Root 权限后操作！",

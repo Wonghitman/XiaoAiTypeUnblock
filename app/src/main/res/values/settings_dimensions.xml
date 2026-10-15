@@ -1,8 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <dimen name="settings_row_padding">14dp</dimen>
+    <dimen name="settings_row_padding">16dp</dimen>
     <dimen name="settings_touch_height">48dp</dimen>
     <dimen name="settings_title_size">15sp</dimen>
     <dimen name="settings_description_size">13sp</dimen>
     <dimen name="settings_divider_height">1dp</dimen>
+
+    <!-- Spacing on a 4dp grid -->
+    <dimen name="space_xs">4dp</dimen>
+    <dimen name="space_sm">8dp</dimen>
+    <dimen name="space_md">12dp</dimen>
+    <dimen name="space_lg">16dp</dimen>
+    <dimen name="space_xl">24dp</dimen>
+
+    <dimen name="radius_sm">8dp</dimen>
+    <dimen name="radius_md">16dp</dimen>
+    <dimen name="radius_card">20dp</dimen>
+    <dimen name="radius_lg">28dp</dimen>
+
+    <dimen name="nav_height">68dp</dimen>
+    <dimen name="icon_tile">40dp</dimen>
+    <dimen name="floating_margin">12dp</dimen>
 </resources>
