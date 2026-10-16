@@ -12,7 +12,6 @@ import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
-import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
@@ -24,7 +23,6 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
 import io.mo.xatype.BuildConfig
 import io.mo.xatype.R
 import io.mo.xatype.compat.AdaptationStatus
@@ -74,7 +72,6 @@ class MainActivity : AppCompatActivity() {
         kit = SettingsKit(this)
         prefs = ConfigManager.getLocalPrefs(this)
 
-        initToolbar()
         initRestartBar()
         // Registered first so the appearance panel's own back handling wins while it is open.
         onBackPressedDispatcher.addCallback(this, backToHome)
@@ -141,16 +138,6 @@ class MainActivity : AppCompatActivity() {
         }
         splash.onFinished = { content.removeView(splash) }
         content.addView(splash, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
-    }
-
-    private fun initToolbar() {
-        val toolbar = findViewById<Toolbar>(R.id.toolbar)
-        toolbar.menu.add("使用说明").apply {
-            setIcon(R.drawable.ic_info)
-            icon?.setTint(getColor(R.color.text_primary))
-            setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
-            setOnMenuItemClickListener { showGuide(); true }
-        }
     }
 
     private fun initRestartBar() {
