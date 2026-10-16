@@ -30,9 +30,12 @@ class KeyboardShortcutHostActionsTest {
     }
 
     @Test fun `pending segments use the host highlighted candidate until complete`() {
-        val target = Callbacks(mutableListOf("wsm", "sm", "m"))
-        adapter.finishInput(target)
-        assertEquals(listOf("select:2", "select:2", "select:2", "finish"), target.events)
+        for (segments in listOf(listOf("wsm", "sm", "m"), listOf("64726", "426", "26"))) {
+            val target = Callbacks(segments.toMutableList())
+            adapter.finishInput(target)
+            assertEquals(listOf("select:2", "select:2", "select:2", "finish"), target.events)
+            assertTrue(target.segments.isEmpty())
+        }
     }
 
     @Test fun `missing or stalled candidates preserve remaining text and clear state`() {

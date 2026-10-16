@@ -18,10 +18,15 @@ class KeyboardShortcutHostLayout(loader: ClassLoader, private val abi: KeyboardA
         Boolean::class.javaPrimitiveType, Boolean::class.javaPrimitiveType, Integer::class.java,
         Boolean::class.javaPrimitiveType, Integer::class.java)
     fun label(instance: Any) = fields[1].get(instance) as String
-    fun action(instance: Any, keyboard18: Boolean): String? {
+    fun action(instance: Any, layout: KeyboardShortcutLayout): String? {
         if ((fields[5].get(instance) as Enum<*>).name != "CHAR") return null
         val code = fields[0].getInt(instance)
-        if (keyboard18) {
+        if (layout == KeyboardShortcutLayout.T9) {
+            val letters = label(instance).filterNot(Char::isWhitespace).lowercase()
+            if (code !in '2'.code..'9'.code || KeyboardShortcuts.t9Letters[code.toChar()] != letters) return null
+            return KeyboardShortcuts.groups9[letters]
+        }
+        if (layout == KeyboardShortcutLayout.KEYBOARD18) {
             val letters = label(instance).filterNot(Char::isWhitespace).lowercase()
             val group = Keyboard18Keys.group(code) ?: Keyboard18Keys.groups.firstOrNull {
                 it.first() == code.toChar().lowercaseChar() && it == letters

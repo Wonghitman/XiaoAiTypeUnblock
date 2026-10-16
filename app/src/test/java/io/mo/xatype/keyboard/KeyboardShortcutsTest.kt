@@ -1,6 +1,7 @@
 package io.mo.xatype.keyboard
 
 import io.mo.xatype.keyboard18.Keyboard18HostLayout
+import io.mo.xatype.keyboard.KeyboardShortcutLayout.*
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -25,9 +26,9 @@ class KeyboardShortcutsTest {
     @Test fun `native Chinese English shift and split keys all retain independent display casing`() {
         for (english in listOf(false, true)) for (shift in listOf(false, true)) for (split in listOf(false, true)) {
             val original = layout(english, shift, split)
-            assertEquals(5, keys(original).mapNotNull { adapter.action(it, false) }.size)
+            assertEquals(5, keys(original).mapNotNull { adapter.action(it, QWERTY) }.size)
             val copy = keys(original).single { it.a == (if (shift) 'C' else 'c').code }
-            assertEquals("复制", adapter.action(copy, false))
+            assertEquals("复制", adapter.action(copy, QWERTY))
             assertEquals(if (!english || shift) "C" else "c", copy.b)
             assertEquals(listOf("C", "-", "c"), copy.i)
         }
@@ -52,20 +53,83 @@ class KeyboardShortcutsTest {
         val builder = Keyboard18HostLayout(loader, abi)
         for (english in listOf(false, true)) {
             val keyboard = builder.rebuild(layout(english, false, false), english) as ka.g
-            assertEquals(5, keys(keyboard).mapNotNull { adapter.action(it, true) }.size)
+            assertEquals(5, keys(keyboard).mapNotNull { adapter.action(it, KEYBOARD18) }.size)
             assertFalse(keys(keyboard).any { it.i.orEmpty().any(KeyboardShortcuts.actions::contains) })
-            val copy = keys(keyboard).single { adapter.action(it, true) == "复制" }
+            val copy = keys(keyboard).single { adapter.action(it, KEYBOARD18) == "复制" }
             assertTrue(copy.i.orEmpty().containsAll(listOf("x", "c", "7")))
-            assertNull(adapter.action(copy, false))
+            assertNull(adapter.action(copy, QWERTY))
         }
     }
 
     @Test fun `unrelated labels symbols controls and non shortcut letters are not gestures`() {
-        assertNull(adapter.action(key('a'.code, "A"), false))
-        assertNull(adapter.action(key('c'.code, "XC"), false))
-        assertNull(adapter.action(key('c'.code, "复制"), false))
-        assertNull(adapter.action(key('1'.code, "1"), false))
-        assertNull(adapter.action(ka.c(-2, ka.f.BACKSPACE), false))
+        assertNull(adapter.action(key('a'.code, "A"), QWERTY))
+        assertNull(adapter.action(key('c'.code, "XC"), QWERTY))
+        assertNull(adapter.action(key('c'.code, "复制"), QWERTY))
+        assertNull(adapter.action(key('1'.code, "1"), QWERTY))
+        assertNull(adapter.action(ka.c(-2, ka.f.BACKSPACE), QWERTY))
+    }
+
+    @Test fun `T9 maps five physical letter groups without binding adjacent number keys`() {
+        val expected = mapOf('4' to "段首", '6' to "段尾", '7' to "全选", '8' to "复制", '9' to "粘贴")
+        for (split in listOf(false, true)) for (multiline in listOf(false, true)) {
+            val letters = listOf("ABC", "DEF", "GHI", "JKL", "MNO", "PQRS", "TUV", "WXYZ")
+                .mapIndexed { index, group ->
+                    key('2'.code + index, if (multiline) group.lowercase().toList().joinToString("\n") else group,
+                        group.map(Char::toString) + ('2'.code + index).toChar().toString() + group.lowercase().map(Char::toString))
+                }
+            val rows = letters.chunked(3).map { row ->
+                if (split) ka.e(1f, row.take(1), row.drop(1)) else ka.e(1f, row, null)
+            } + ka.e(1f, ('0'..'9').map { key(it.code, it.toString()) }, null)
+            val keyboard = ka.g("t9", "九键", rows, listOf("T9"), 8f, 4f, true, 12f, true)
+            val shortcuts = keys(keyboard).mapNotNull { source ->
+                adapter.action(source, T9)?.let { source.a.toChar() to it }
+            }
+            assertEquals(5, shortcuts.size)
+            assertEquals(expected, shortcuts.toMap())
+            assertTrue(keys(keyboard).none { adapter.action(it, QWERTY) != null || adapter.action(it, KEYBOARD18) != null })
+        }
+    }
+
+    @Test fun `T9 requires matching digit code and complete letter group`() {
+        for ((code, label) in listOf('8' to "8", '7' to "TUV", '8' to "TV", '8' to "TUV8",
+                'v' to "TUV", '2' to "ABC", '3' to "DEF", '5' to "JKL", '0' to "WXYZ")) {
+            assertNull("$code / $label", adapter.action(key(code.code, label), T9))
+        }
+        assertNull(adapter.action(ka.c('8'.code, ka.f.SWITCH), T9))
+        assertNull(adapter.action(key('c'.code, "C"), T9))
+    }
+
+    @Test fun `T9 release preserves the original digit hints popup menu and key geometry`() {
+        val original = ka.c('8'.code, "TUV", 1f, 81.45f, 50f, ka.f.CHAR, "8", null,
+            listOf("T", "U", "V", "8", "t", "u", "v"), 3, null, false, null, false, false, null, false, null)
+        val action = adapter.actionKey(original, adapter.action(original, T9)!!) as ka.c
+        assertEquals('8'.code, original.a)
+        assertEquals("TUV", original.b)
+        assertEquals(listOf("T", "U", "V", "8", "t", "u", "v"), original.i)
+        assertEquals("复制", action.b)
+        assertEquals(listOf("复制"), action.i)
+        for (name in 'a'..'r') if (name !in listOf('a', 'b', 'i')) {
+            val field = ka.c::class.java.getDeclaredField(name.toString())
+            assertEquals("field $name", field.get(original), field.get(action))
+        }
+    }
+
+    @Test fun `host layout gating accepts T9 and rejects number panels and unrelated engines`() {
+        assertEquals(T9, KeyboardShortcutLayout.fromHost("T9", "t9", false))
+        assertEquals(QWERTY, KeyboardShortcutLayout.fromHost("PINYIN", "qwerty", false))
+        assertEquals(QWERTY, KeyboardShortcutLayout.fromHost("ENGLISH", "qwerty", false))
+        assertEquals(KEYBOARD18, KeyboardShortcutLayout.fromHost("PINYIN", "qwerty", true))
+        assertEquals(KEYBOARD18, KeyboardShortcutLayout.fromHost("ENGLISH", "qwerty", true))
+        for (mode in listOf("T9", "PINYIN", "ENGLISH", "SHUANGPIN", "STROKE", "HANDWRITING", "VOICE", null)) {
+            for (layoutId in listOf("number", "stroke", "handwriting", "", null)) {
+                assertNull(KeyboardShortcutLayout.fromHost(mode, layoutId, false))
+                assertNull(KeyboardShortcutLayout.fromHost(mode, layoutId, true))
+            }
+        }
+        assertNull(KeyboardShortcutLayout.fromHost("T9", "qwerty", false))
+        assertNull(KeyboardShortcutLayout.fromHost("PINYIN", "t9", false))
+        assertNull(KeyboardShortcutLayout.fromHost("T9", "t9", true))
+        assertNull(KeyboardShortcutLayout.fromHost("SHUANGPIN", "qwerty", false))
     }
 
     @Test(expected = IllegalArgumentException::class) fun `release cannot synthesize an arbitrary action`() {

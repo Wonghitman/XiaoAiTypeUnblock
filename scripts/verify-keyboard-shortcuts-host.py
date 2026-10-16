@@ -1,4 +1,4 @@
-"""Verify swipe shortcut rendering, coordinates, draw state and release callbacks in host 21053 DEX."""
+"""Verify nine/26-key swipe rendering, layout tracking and release callbacks in host 21053 DEX."""
 import argparse
 from pathlib import Path
 
@@ -25,7 +25,12 @@ required = {
              ".field public final a:Ljava/util/List;", ".field public final b:F", ".field public final c:Ljava/util/List;"],
     "ka/g": [".method public constructor <init>(Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/lang/Float;Ljava/lang/Float;ZLjava/lang/Float;Z)V"],
     "ka/j": [".method public static e(CLjava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/Integer;ZZLjava/lang/Float;I)Lka/c;",
+             ".method public static u(CLjava/lang/String;Ljava/lang/Float;Ljava/lang/Float;Ljava/util/List;Ljava/lang/Integer;)Lka/c;",
              "Ljava/lang/Character;->toLowerCase(C)C", "Ljava/lang/Character;->toUpperCase(C)C"],
+    "ka/x": ['"t9"', '"GHI"', '"MNO"', '"PQRS"', '"TUV"', '"WXYZ"',
+             "Lka/j;->u(CLjava/lang/String;Ljava/lang/Float;Ljava/lang/Float;Ljava/util/List;Ljava/lang/Integer;)Lka/c;"],
+    "ka/l": ['"t9"', '"GHI"', '"MNO"', '"PQRS"', '"TUV"', '"WXYZ"'],
+    "z8/g": ['"PINYIN"', '"T9"', '"ENGLISH"'],
     "ab/p1": [".field public final a:Lcom/mi/ime/MiInputMethodService;",
               ".method public final e(Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;ZLla/a;)Lka/g;",
               ".method public final H(Lz8/g;Landroid/view/inputmethod/EditorInfo;Z)V",
@@ -69,4 +74,8 @@ import re
 renderer = re.search(r"(?m)^\.method public static final a\((Lka/c;.*?)\)V$", source("z9/w5")).group(1)
 assert len(re.findall(r"L[^;]+;|[ZBCSIJFD]", renderer)) == 30
 assert "Lp0/n;->a(Ljava/lang/String;Le1/o;" in source("z9/w5")
-print(f"PASS: swipe shortcut draw, coordinates, state and release callbacks ({len(required)} classes)")
+setters = re.findall(r"(?m)^\.method[^\n]* ([^\s(]+)\(Lka/g;\)V$", source("ab/p1"))
+assert setters == ["B"], ("unique layout setter", setters)
+setter = re.search(r"(?ms)^\.method public final B\(Lka/g;\)V.*?^\.end method", source("ab/p1")).group(0)
+assert "Ls0/c1;->setValue(Ljava/lang/Object;)V" in setter
+print(f"PASS: nine/26-key swipe draw, T9 labels, unique layout setter and release callbacks ({len(required)} classes)")

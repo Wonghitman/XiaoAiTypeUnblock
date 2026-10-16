@@ -459,7 +459,7 @@ class MainActivity : AppCompatActivity() {
     // --------------------------------------------------------- keyboard
 
     private fun buildKeyboard(root: LinearLayout) {
-        // Alphabet shortcuts are independent of experimental keyboards and appearance.
+        // Key shortcuts are independent of experimental keyboards and appearance.
         kit.group(root, "输入增强", listOf(
             prefSwitch(ConfigManager.KEY_KEYBOARD_SHORTCUTS, getString(R.string.keyboard_shortcuts_title),
                 getString(R.string.keyboard_shortcuts_description)).view

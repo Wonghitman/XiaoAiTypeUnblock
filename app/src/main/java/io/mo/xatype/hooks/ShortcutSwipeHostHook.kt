@@ -8,6 +8,7 @@ import io.mo.xatype.compat.HostSymbols
 import io.mo.xatype.compat.KeyboardAbi
 import io.mo.xatype.compat.abiField
 import io.mo.xatype.compat.abiMethod
+import io.mo.xatype.keyboard.KeyboardShortcutLayout
 import io.mo.xatype.keyboard.ShortcutSwipeGesture
 import io.mo.xatype.keyboard.ShortcutSwipeHostBridge
 import io.mo.xatype.util.XposedUtils
@@ -16,9 +17,9 @@ import java.util.WeakHashMap
 import kotlin.math.min
 
 /** Bind to actual Compose key coordinates; cancel native input only once a downward drag wins. */
-class ShortcutSwipeHostHook(private val enabled: () -> Boolean, private val keyboard18: () -> Boolean) {
+class ShortcutSwipeHostHook(private val enabled: () -> Boolean, private val layout: () -> KeyboardShortcutLayout?) {
     private class Key(val owner: WeakReference<View>, var source: Any, val action: String,
-                      var callback: Any, val state: Any, val is18: Boolean) {
+                      var callback: Any, val state: Any, val layout: KeyboardShortcutLayout) {
         var coordinates: WeakReference<Any>? = null
         var originalModifier: Any? = null
         var decoratedModifier: Any? = null
@@ -49,12 +50,12 @@ class ShortcutSwipeHostHook(private val enabled: () -> Boolean, private val keyb
         module.hook(renderer).intercept { chain ->
             if (drawFailureReported || !enabled()) return@intercept chain.proceed()
             val source = chain.getArg(0)!!
-            val is18 = keyboard18()
-            val action = bridge.action(source, is18) ?: return@intercept chain.proceed()
+            val currentLayout = layout() ?: return@intercept chain.proceed()
+            val action = bridge.action(source, currentLayout) ?: return@intercept chain.proceed()
             val owner = bridge.view(chain.getArg(26)!!)
-            val id = "${is18}:${source.javaClass.abiField(abi, "a").getInt(source)}:${bridge.label(source)}"
+            val id = "${currentLayout}:${source.javaClass.abiField(abi, "a").getInt(source)}:${bridge.label(source)}"
             val key = keys.getOrPut(owner) { LinkedHashMap() }.getOrPut(id) {
-                Key(WeakReference(owner), source, action, bridge.unwrap(chain.getArg(10)!!), bridge.progressState(), is18)
+                Key(WeakReference(owner), source, action, bridge.unwrap(chain.getArg(10)!!), bridge.progressState(), currentLayout)
             }
             key.source = source
             key.callback = bridge.unwrap(chain.getArg(10)!!)
@@ -115,8 +116,9 @@ class ShortcutSwipeHostHook(private val enabled: () -> Boolean, private val keyb
             if (event.actionMasked == MotionEvent.ACTION_DOWN) {
                 reset()
                 if (!drawFailureReported && enabled() && event.pointerCount == 1) {
+                    val currentLayout = layout()
                     val key = keys[view]?.values?.lastOrNull { candidate ->
-                        candidate.is18 == keyboard18() && candidate.coordinates?.get()?.let {
+                        candidate.layout == currentLayout && candidate.coordinates?.get()?.let {
                             bridge.bounds(it)?.contains(event.rawX, event.rawY)
                         } == true
                     }
@@ -130,7 +132,7 @@ class ShortcutSwipeHostHook(private val enabled: () -> Boolean, private val keyb
             }
             val current = touch?.takeIf { it.key.owner.get() === view } ?: return@intercept chain.proceed()
             val nativeWasCancelled = current.nativeCancelled
-            if (drawFailureReported || !enabled() || current.key.is18 != keyboard18() || event.pointerCount != 1 ||
+            if (drawFailureReported || !enabled() || current.key.layout != layout() || event.pointerCount != 1 ||
                 event.actionMasked == MotionEvent.ACTION_CANCEL || event.findPointerIndex(current.pointer) < 0) {
                 current.gesture.cancel()
                 bridge.progress(current.key.state, 0f)

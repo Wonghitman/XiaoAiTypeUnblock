@@ -43,7 +43,7 @@ class ShortcutSwipeHostBridge(private val loader: ClassLoader, private val abi: 
     private val argb = type("l1.h0").abiMethod(abi, "v", Long::class.javaPrimitiveType)
 
     fun label(instance: Any) = keys.label(instance)
-    fun action(instance: Any, keyboard18: Boolean) = keys.action(instance, keyboard18)
+    fun action(instance: Any, layout: KeyboardShortcutLayout) = keys.action(instance, layout)
     fun actionKey(source: Any, action: String) = keys.actionKey(source, action)
     fun dispatch(target: Any, key: Any) { invoke.invoke(target, key) }
     fun view(composer: Any): View = readLocal.invoke(composer, localView) as View
