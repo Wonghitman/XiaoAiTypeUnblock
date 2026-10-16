@@ -55,6 +55,7 @@
 
         <activity android:name=".ui.ShapeInputActivity" android:exported="false" />
         <activity android:name=".ui.Keyboard18Activity" android:exported="false" />
+        <activity android:name=".ui.GuideActivity" android:exported="false" />
 
         <!-- The launcher icon; the "hide launcher icon" switch disables it. -->
         <activity-alias

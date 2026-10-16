@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Typeface
 import android.os.Build
+import android.text.TextUtils
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
@@ -17,7 +18,7 @@ import io.mo.xatype.R
 import kotlin.math.roundToInt
 
 /** Builds the grouped settings rows shared by the main tabs. Every size and color comes from resources. */
-internal class SettingsKit(private val context: Context) {
+internal class SettingsKit(val context: Context) {
 
     fun dp(value: Int): Int = (value * context.resources.displayMetrics.density).roundToInt()
     fun dimen(res: Int): Int = context.resources.getDimensionPixelSize(res)
@@ -77,13 +78,18 @@ internal class SettingsKit(private val context: Context) {
         context.getDrawable(it.resourceId)
     }
 
-    fun titleBlock(title: CharSequence, subtitle: CharSequence?) = LinearLayout(context).apply {
+    /** [singleLine] keeps settings rows to one subtitle line; the full text belongs in a [Detail]. */
+    fun titleBlock(title: CharSequence, subtitle: CharSequence?, singleLine: Boolean = false) = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
         addView(label(title, 15f, R.color.text_primary, bold = true))
         if (!subtitle.isNullOrEmpty()) {
             addView(label(subtitle, 13f, R.color.text_secondary).apply {
                 setPadding(0, dp(2), 0, 0)
                 setLineSpacing(dp(2).toFloat(), 1f)
+                if (singleLine) {
+                    maxLines = 1
+                    ellipsize = TextUtils.TruncateAt.END
+                }
             })
         }
     }
@@ -105,6 +111,37 @@ internal class SettingsKit(private val context: Context) {
         })
     }
 
+    /** The full explanation of a setting, shown in an [InfoSheet] instead of under its title. */
+    class Detail(
+        val about: CharSequence,
+        val notes: List<CharSequence> = emptyList(),
+        /** Internal names and mechanisms, for readers who want them. */
+        val technical: CharSequence? = null,
+        /** Extra content placed after [about], such as a key map. */
+        val extra: ((SettingsKit) -> View)? = null
+    )
+
+    private fun trailingIcon(iconRes: Int) = ImageView(context).apply {
+        setImageResource(iconRes)
+        imageTintList = ColorStateList.valueOf(color(R.color.text_secondary))
+        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+    }
+
+    /** A 48dp target that opens the detail sheet without toggling the row. */
+    fun infoButton(title: CharSequence, detail: Detail) = ImageView(context).apply {
+        setImageResource(R.drawable.ic_info)
+        imageTintList = ColorStateList.valueOf(color(R.color.text_secondary))
+        scaleType = ImageView.ScaleType.CENTER_INSIDE
+        val pad = dp(14)
+        setPadding(pad, pad, pad, pad)
+        background = TypedValue().let {
+            context.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, it, true)
+            context.getDrawable(it.resourceId)
+        }
+        contentDescription = "$title 说明"
+        setOnClickListener { InfoSheet.show(context, title, detail) }
+    }
+
     class SwitchRow(val view: LinearLayout, val switch: SwitchCompat)
 
     /** The whole row toggles; [onChange] fires on every change after creation. */
@@ -113,14 +150,16 @@ internal class SettingsKit(private val context: Context) {
         subtitle: CharSequence?,
         checked: Boolean,
         iconRes: Int? = null,
+        detail: Detail? = null,
         onChange: (Boolean) -> Unit
     ): SwitchRow {
         val row = row()
         addLeading(row, iconRes)
-        row.addView(titleBlock(title, subtitle), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        row.addView(titleBlock(title, subtitle, singleLine = true), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        detail?.let { row.addView(infoButton(title, it), LinearLayout.LayoutParams(dp(48), dp(48))) }
         val switch = SwitchCompat(context).apply {
             isChecked = checked
-            setPadding(dimen(R.dimen.space_md), 0, 0, 0)
+            setPadding(if (detail == null) dimen(R.dimen.space_md) else 0, 0, 0, 0)
             contentDescription = title
             setOnCheckedChangeListener { view, value ->
                 confirmHaptic(view)
@@ -135,14 +174,38 @@ internal class SettingsKit(private val context: Context) {
     fun navRow(title: CharSequence, subtitle: CharSequence?, iconRes: Int?, onClick: () -> Unit): LinearLayout {
         val row = row()
         addLeading(row, iconRes)
-        row.addView(titleBlock(title, subtitle), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        row.addView(ImageView(context).apply {
-            setImageResource(R.drawable.ic_shape_chevron)
-            imageTintList = ColorStateList.valueOf(color(R.color.text_secondary))
-            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-        }, LinearLayout.LayoutParams(dp(20), dp(20)).apply { marginStart = dimen(R.dimen.space_sm) })
+        row.addView(titleBlock(title, subtitle, singleLine = true), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        row.addView(trailingIcon(R.drawable.ic_shape_chevron),
+            LinearLayout.LayoutParams(dp(20), dp(20)).apply { marginStart = dimen(R.dimen.space_sm) })
         row.setOnClickListener { onClick() }
         return row
+    }
+
+    /** A row whose whole surface opens [detail]. */
+    fun detailRow(title: CharSequence, subtitle: CharSequence?, detail: Detail, iconRes: Int? = null): LinearLayout {
+        val row = row()
+        addLeading(row, iconRes)
+        row.addView(titleBlock(title, subtitle, singleLine = true), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        row.addView(trailingIcon(R.drawable.ic_info),
+            LinearLayout.LayoutParams(dp(20), dp(20)).apply { marginStart = dimen(R.dimen.space_sm) })
+        row.setOnClickListener { InfoSheet.show(context, title, detail) }
+        return row
+    }
+
+    /** A non-interactive row: icon, title and one line of text. */
+    fun staticRow(title: CharSequence, subtitle: CharSequence?, iconRes: Int? = null) = row().apply {
+        isClickable = false
+        isFocusable = false
+        foreground = null
+        addLeading(this, iconRes)
+        addView(titleBlock(title, subtitle), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+    }
+
+    /** A card holding a paragraph of body text. */
+    fun textCard(text: CharSequence) = card().apply {
+        val pad = dimen(R.dimen.settings_row_padding)
+        setPadding(pad, dimen(R.dimen.space_md), pad, dimen(R.dimen.space_md))
+        addView(label(text, 14f, R.color.text_primary).apply { setLineSpacing(dp(3).toFloat(), 1f) })
     }
 
     fun seekBar(max: Int, value: Int, description: String) = SeekBar(context).apply {

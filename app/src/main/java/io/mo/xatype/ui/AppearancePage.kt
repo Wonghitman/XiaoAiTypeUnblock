@@ -169,7 +169,7 @@ class AppearancePage(
         root.addView(kit.sectionHeader("总开关", first = true))
         root.addView(card().apply {
             val row = horizontalRow()
-            row.addView(titleBlock("启用键盘外观个性化", "关闭时键盘保持原生样式；预览卡片可拖动、缩放或收起"),
+            row.addView(titleBlock("启用键盘外观个性化", "关闭时键盘保持原生样式"),
                 LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
             styleSwitch = SwitchCompat(context).apply {
                 isChecked = prefs.getBoolean(ConfigManager.KEY_STYLE_ENABLED, false)
@@ -179,6 +179,8 @@ class AppearancePage(
                     onConfigChanged()
                 }
             }
+            row.addView(kit.infoButton("键盘外观个性化", FeatureCatalog.appearance),
+                LinearLayout.LayoutParams(dp(48), dp(48)))
             row.addView(styleSwitch)
             row.setOnClickListener { styleSwitch.toggle() }
             addView(row)
@@ -631,7 +633,7 @@ class AppearancePage(
 
     private fun optionRow(option: Option): View {
         val row = horizontalRow()
-        row.addView(titleBlock(option.title, option.subtitle),
+        row.addView(kit.titleBlock(option.title, option.subtitle, singleLine = true),
             LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         val swatch = View(this)
         row.addView(swatch, LinearLayout.LayoutParams(dp(18), dp(18)).apply { marginStart = dp(8) })

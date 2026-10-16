@@ -9,4 +9,10 @@
         <item name="android:statusBarColor">@color/surface_light</item>
         <item name="android:windowLightStatusBar">true</item>
     </style>
+
+    <!-- The window and its dim only fade; the sheet itself slides on a spring. -->
+    <style name="Animation.XiaoAiTypeUnblock.Sheet" parent="">
+        <item name="android:windowEnterAnimation">@android:anim/fade_in</item>
+        <item name="android:windowExitAnimation">@android:anim/fade_out</item>
+    </style>
 </resources>

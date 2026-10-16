@@ -23,7 +23,6 @@ import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import io.mo.xatype.BuildConfig
@@ -34,9 +33,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 class MainActivity : AppCompatActivity() {
-
-    /** A plain on/off hook setting. */
-    private class Feature(val key: String, val title: String, val description: String)
 
     private class Tab(val label: String, val icon: Int, val page: View)
 
@@ -63,31 +59,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var keyboardCount: TextView
     private lateinit var appearanceState: TextView
 
-    private val purifyGroups = listOf(
-        "内容风控" to listOf(
-            Feature(ConfigManager.KEY_AI_SAFETY, "AI 表达安全拦截解除", "去除 AI 润色与回复时的「已屏蔽敏感内容」阻断"),
-            Feature(ConfigManager.KEY_VOICE_MODERATION, "语音转写合规审查解除", "拦截 CONTENT_MODERATION 风控弹窗与 30002 错误中断"),
-            Feature(ConfigManager.KEY_CLOUD_BLACKLIST, "云端黑名单词库下发拦截", "清空 key_blackliststr，保留全部云端联想与热词")
-        ),
-        "系统与机型限制" to listOf(
-            Feature(ConfigManager.KEY_OS_VERSION_UNBLOCK, "澎湃 OS4+ 版本限制解除", "绕过非 HyperOS 4.0+ 系统的弹窗阻断与自退限制"),
-            Feature(ConfigManager.KEY_AI_ABILITY_UNLOCK, "解除 AI 功能机型限制",
-                "放开按机型/区域/配置白名单屏蔽的端侧 AI 能力入口（部分能力仍需 AI 服务实际支持）")
-        ),
-        "剪贴板" to listOf(
-            Feature(ConfigManager.KEY_CLIPBOARD_SENSITIVE, "剪贴板敏感标记忽略绕过", "绕过 IS_SENSITIVE 标记，允许剪贴板快捷记录与联想"),
-            Feature(ConfigManager.KEY_CLIPBOARD_PERMANENT, "剪贴板永久保存", "解除 20 条、72 小时与单条文字长度限制")
-        ),
-        "隐私" to listOf(
-            Feature(ConfigManager.KEY_TELEMETRY_BLOCK, "遥测与埋点拦截", "关闭小米 OneTrack 统计与广告监控上报（不含讯飞内核自身遥测）")
-        )
-    )
-    private val purifyKeys = purifyGroups.flatMap { (_, features) -> features.map { it.key } }
-    private val keyboardKeys = listOf(
-        ConfigManager.KEY_KEYBOARD_SHORTCUTS,
-        ConfigManager.KEY_KEYBOARD_HEIGHT_UNBLOCK,
-        ConfigManager.KEY_BOTTOM_SPACING_ENABLED
-    )
+    private val purifyKeys = FeatureCatalog.purifyGroups.flatMap { (_, features) -> features.map { it.key } }
+    private val keyboardKeys = FeatureCatalog.keyboardFeatures.map { it.key }
 
     private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> refreshOverview() }
 
@@ -176,7 +149,7 @@ class MainActivity : AppCompatActivity() {
             setIcon(R.drawable.ic_info)
             icon?.setTint(getColor(R.color.text_primary))
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
-            setOnMenuItemClickListener { showAbout(); true }
+            setOnMenuItemClickListener { showGuide(); true }
         }
     }
 
@@ -326,16 +299,20 @@ class MainActivity : AppCompatActivity() {
 
         val launcherAlias = ComponentName(this, "$packageName.ui.LauncherAlias")
         kit.group(root, "模块设置", listOf(
-            prefSwitch(ConfigManager.KEY_VERBOSE_LOG, "输出详细调试日志", "在 Logcat 中打印 XiaoAiTypeUnblock 拦截详情",
+            prefSwitch(ConfigManager.KEY_VERBOSE_LOG, "输出详细调试日志", "在 Logcat 中打印拦截详情",
                 needsRestart = false).view,
-            kit.switchRow("启动动画", "打开设置页时播放净化动画，轻触可跳过；系统关闭动画时自动省略",
-                prefs.getBoolean(ConfigManager.KEY_SPLASH_ANIMATION, true)
+            kit.switchRow("启动动画", "打开设置页时播放净化动画",
+                prefs.getBoolean(ConfigManager.KEY_SPLASH_ANIMATION, true),
+                detail = SettingsKit.Detail("打开设置页时先播放一段净化动画。",
+                    notes = listOf("轻触可跳过。", "系统关闭动画时自动省略。"))
             ) { checked ->
                 prefs.edit().putBoolean(ConfigManager.KEY_SPLASH_ANIMATION, checked).apply()
             }.view,
             // Component state, not a preference: the launcher reads it directly.
-            kit.switchRow("隐藏桌面图标", "隐藏后可在 LSPosed 管理器的模块列表中点击本模块进入设置",
-                packageManager.getComponentEnabledSetting(launcherAlias) == PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+            kit.switchRow("隐藏桌面图标", "可从 LSPosed 管理器进入设置",
+                packageManager.getComponentEnabledSetting(launcherAlias) == PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                detail = SettingsKit.Detail("隐藏后桌面不再显示本模块的图标。",
+                    notes = listOf("在 LSPosed 管理器的模块列表中点击本模块，即可进入设置。"))
             ) { hide ->
                 packageManager.setComponentEnabledSetting(
                     launcherAlias,
@@ -357,15 +334,8 @@ class MainActivity : AppCompatActivity() {
                 startActivity(Intent(this, io.mo.xatype.diagnostics.DiagnosticsActivity::class.java))
             }
         }
-        more += kit.navRow("使用说明", "模块功能与工作方式", R.drawable.ic_info) { showAbout() }
+        more += kit.navRow("使用说明", "模块功能与工作方式", R.drawable.ic_info) { showGuide() }
         kit.group(root, "更多", more)
-
-        root.addView(kit.label("基于 libxposed API 102 (Modern Xposed 规范)\n支持 LSPosed v2.1.0+ 及模块自动热重载",
-            12f, R.color.text_secondary).apply {
-            gravity = Gravity.CENTER
-            setLineSpacing(kit.dp(3).toFloat(), 1f)
-            setPadding(0, kit.dimen(R.dimen.space_xl), 0, kit.dimen(R.dimen.space_sm))
-        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
     }
 
     /** A small card with a count; tapping it opens [tab]. Returns the value view. */
@@ -482,8 +452,8 @@ class MainActivity : AppCompatActivity() {
     // ----------------------------------------------------------- purify
 
     private fun buildPurify(root: LinearLayout) {
-        purifyGroups.forEachIndexed { index, (title, features) ->
-            kit.group(root, title, features.map { prefSwitch(it.key, it.title, it.description).view }, first = index == 0)
+        FeatureCatalog.purifyGroups.forEachIndexed { index, (title, features) ->
+            kit.group(root, title, features.map { featureSwitch(it).view }, first = index == 0)
         }
     }
 
@@ -491,19 +461,15 @@ class MainActivity : AppCompatActivity() {
 
     private fun buildKeyboard(root: LinearLayout) {
         // Key shortcuts are independent of experimental keyboards and appearance.
-        kit.group(root, "输入增强", listOf(
-            prefSwitch(ConfigManager.KEY_KEYBOARD_SHORTCUTS, getString(R.string.keyboard_shortcuts_title),
-                getString(R.string.keyboard_shortcuts_description)).view
-        ), first = true)
+        kit.group(root, "输入增强", listOf(featureSwitch(FeatureCatalog.keyboardShortcuts).view), first = true)
 
         kit.group(root, "尺寸与布局", listOf(
-            prefSwitch(ConfigManager.KEY_KEYBOARD_HEIGHT_UNBLOCK, "解除键盘高度上限",
-                "允许在键盘调节中继续向上拉伸；支持 0.2.1053，重启输入法生效").view,
+            featureSwitch(FeatureCatalog.keyboardHeight).view,
             bottomSpacingRow()
         ))
 
         kit.group(root, "输入方案（实验）", listOf(
-            kit.navRow("形码输入", "虎码 / 五笔，导入码表并在小爱中使用", R.drawable.ic_text_fields) {
+            kit.navRow("形码输入", "虎码 / 五笔，导入码表使用", R.drawable.ic_text_fields) {
                 startActivity(Intent(this, ShapeInputActivity::class.java))
             },
             kit.navRow("18 键键盘", "离线拼音 · 可交互预览（原型）", R.drawable.ic_nav_keyboard) {
@@ -518,9 +484,7 @@ class MainActivity : AppCompatActivity() {
         val value = kit.label("", 13f, R.color.primary, bold = true)
         val seek = kit.seekBar(100, prefs.getInt(ConfigManager.KEY_BOTTOM_SPACING, 0).coerceIn(0, 100),
             "键盘底部间距，0 到 100 dp")
-        val toggle = prefSwitch(ConfigManager.KEY_BOTTOM_SPACING_ENABLED, "自定义键盘底部间距",
-            "调节按键下方留白；0 dp 尽量贴底，关闭恢复原生。保留系统导航区域，悬浮键盘保持原生间距；重启输入法生效。"
-        ) { checked ->
+        val toggle = featureSwitch(FeatureCatalog.bottomSpacing) { checked ->
             seek.isEnabled = checked
             value.text = if (checked) "${seek.progress} dp" else "原生间距"
         }
@@ -559,46 +523,24 @@ class MainActivity : AppCompatActivity() {
         return container
     }
 
+    private fun featureSwitch(feature: Feature, onChange: ((Boolean) -> Unit)? = null) =
+        prefSwitch(feature.key, feature.title, feature.summary, feature.detail, onChange = onChange)
+
     /** A switch bound to a boolean preference that defaults to off. */
     private fun prefSwitch(
         key: String,
         title: String,
-        description: String,
+        summary: String,
+        detail: SettingsKit.Detail? = null,
         needsRestart: Boolean = true,
         onChange: ((Boolean) -> Unit)? = null
-    ): SettingsKit.SwitchRow = kit.switchRow(title, description, prefs.getBoolean(key, false)) { checked ->
+    ): SettingsKit.SwitchRow = kit.switchRow(title, summary, prefs.getBoolean(key, false), detail = detail) { checked ->
         prefs.edit().putBoolean(key, checked).apply()
         onChange?.invoke(checked)
         if (needsRestart) markRestartNeeded()
     }
 
-    // ------------------------------------------------------------ about
-
-    private fun showAbout() {
-        AlertDialog.Builder(this)
-            .setTitle("使用说明")
-            .setMessage(
-                "【页面分区】\n" +
-                        "· 概览：模块运行状态、重启输入法、已开启功能统计与模块设置。\n" +
-                        "· 净化：内容风控、系统与机型限制、剪贴板、隐私四类开关。\n" +
-                        "· 键盘：字母下滑快捷操作、键盘高度与底部间距、形码与 18 键实验方案。\n" +
-                        "· 外观：键盘圆角、背景、文字、键帽与卡片颜色；实时预览可拖动、缩放或收起。\n\n" +
-                        "【模块功能】\n" +
-                        "1. 键盘外观个性化定制：支持圆角、透明度、动态液态玻璃、纯色背景、字体及键帽颜色。\n" +
-                        "2. 澎湃 OS4+ 版本限制解除：伪装系统版本并清除 z7.s0 阻断标记，在旧系统与第三方 ROM 上正常使用。\n" +
-                        "3. AI 表达安全拦截解除：去除 AI 润色与智能回复时的 '已屏蔽敏感内容' 阻断。\n" +
-                        "4. 语音转写合规审查解除：拦截 CONTENT_MODERATION 风控弹窗与 30002 错误中断。\n" +
-                        "5. 云端黑名单词库下发拦截：阻断 key_blackliststr 下发，保留所有云端候选与热词。\n" +
-                        "6. 剪贴板敏感标记忽略绕过：忽略 IS_SENSITIVE 标记，允许快捷记录与联想。\n" +
-                        "7. 剪贴板永久保存：解除 20 条、72 小时和单条文字长度限制。\n\n" +
-                        "【生效方式】\n" +
-                        "修改设置后底部会出现提示条，点「立即重启」通过 Root 重启输入法即可生效。\n\n" +
-                        "【技术架构】\n" +
-                        "基于 libxposed API 102 现代架构开发"
-            )
-            .setPositiveButton("确定", null)
-            .show()
-    }
+    private fun showGuide() = startActivity(Intent(this, GuideActivity::class.java))
 
     private companion object {
         const val STATE_TAB = "main_tab"
