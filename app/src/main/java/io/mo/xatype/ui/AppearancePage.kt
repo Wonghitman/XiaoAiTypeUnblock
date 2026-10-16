@@ -185,14 +185,14 @@ class AppearancePage(
         })
 
         section(root, "配置", listOf(
-            Option("深浅色配置", "选择正在编辑的配置，及是否跟随系统切换", Focus.NONE,
+            Option("深浅色配置", "", Focus.NONE,
                 { Summary((if (editingDark) "深色" else "浅色") +
                     if (prefs.getBoolean(AppearanceProfiles.FOLLOW_SYSTEM, false)) " · 跟随系统" else "") },
                 ::buildProfilePanel)
         ))
 
         section(root, "形状与背景", listOf(
-            Option("边角圆角弧度", "键盘顶部两角的圆角大小", Focus.CORNER,
+            Option("边角圆角弧度", "", Focus.CORNER,
                 { Summary("${stylePrefs().getInt(ConfigManager.KEY_CORNER_RADIUS, 16)} dp") }) { panel ->
                 slider(panel, "圆角弧度", 0, 40, stylePrefs().getInt(ConfigManager.KEY_CORNER_RADIUS, 16), { "$it dp" }) {
                     stylePrefs().edit().putInt(ConfigManager.KEY_CORNER_RADIUS, it).apply()
@@ -220,22 +220,22 @@ class AppearancePage(
                 updateWarning(warning)
                 updateCombinedOpacity(combined)
             },
-            Option("毛玻璃模糊强度", "仅对动态毛玻璃背景生效", Focus.BACKGROUND,
+            Option("毛玻璃模糊强度", "", Focus.BACKGROUND,
                 { Summary("${stylePrefs().getInt(ConfigManager.KEY_BLUR_RADIUS, 50)} dp") }) { panel ->
                 slider(panel, "模糊强度", 20, 100, stylePrefs().getInt(ConfigManager.KEY_BLUR_RADIUS, 50), { "$it dp" }) {
                     stylePrefs().edit().putInt(ConfigManager.KEY_BLUR_RADIUS, it).apply()
                 }
                 if (stylePrefs().getInt(ConfigManager.KEY_BG_TYPE, 0) != 0) {
-                    note(panel, "当前是纯色背景，模糊强度不会生效。")
+                    note(panel, "纯色背景下不生效")
                 }
             }
         ))
 
         section(root, "文字与可读性", listOf(
-            colorOption("按键字体颜色", "按键文字、候选字与工具栏图标", Focus.TEXT,
+            colorOption("按键字体颜色", "含候选字与工具栏图标", Focus.TEXT,
                 ConfigManager.KEY_TEXT_COLOR, null, "#FFFFFF",
-                "关闭时根据键盘底色自动使用黑色或白色", "自动"),
-            Option("可读性底色", "透明键盘叠在任何应用上都能看清", Focus.SCRIM, {
+                "自动"),
+            Option("可读性底色", "让透明键盘的文字保持清晰", Focus.SCRIM, {
                 if (!prefs.getBoolean(ConfigManager.KEY_SCRIM_ENABLED, true)) Summary("关闭") else {
                     val p = stylePrefs()
                     val color = parseColor(p.getString(ConfigManager.KEY_SCRIM_COLOR, ""))
@@ -246,21 +246,21 @@ class AppearancePage(
         ))
 
         section(root, "键帽", listOf(
-            colorOption("字母键键帽颜色", "字母、数字、空格等主键的常态键帽", Focus.LETTER_KEY,
+            colorOption("字母键键帽颜色", "", Focus.LETTER_KEY,
                 ConfigManager.KEY_LETTER_KEYCAP_COLOR, ConfigManager.KEY_LETTER_KEYCAP_OPACITY, "#FFFFFF",
-                "关闭时使用输入法原生键帽颜色", "原生"),
-            colorOption("功能键键帽颜色", "分词、退格、符号、123、中/英等功能键", Focus.FUNCTION_KEY,
+                "原生"),
+            colorOption("功能键键帽颜色", "", Focus.FUNCTION_KEY,
                 ConfigManager.KEY_FUNCTION_KEYCAP_COLOR, ConfigManager.KEY_FUNCTION_KEYCAP_OPACITY, "#FFFFFF",
-                "关闭时使用输入法原生键帽颜色", "原生")
+                "原生")
         ))
 
         section(root, "面板卡片", listOf(
-            colorOption("菜单功能卡片颜色", "菜单键展开后的语音、表情等功能卡片", Focus.MENU_CARD,
+            colorOption("菜单功能卡片颜色", "菜单键展开后的功能卡片", Focus.MENU_CARD,
                 ConfigManager.KEY_MENU_CARD_COLOR, ConfigManager.KEY_MENU_CARD_OPACITY, "#FFFFFF",
-                "关闭时使用输入法原生卡片颜色", "原生"),
-            colorOption("剪贴板卡片颜色", "剪贴板与常用语中的内容卡片", Focus.CLIPBOARD_CARD,
+                "原生"),
+            colorOption("剪贴板卡片颜色", "含常用语卡片", Focus.CLIPBOARD_CARD,
                 ConfigManager.KEY_CLIPBOARD_CARD_COLOR, ConfigManager.KEY_CLIPBOARD_CARD_OPACITY, "#FFFFFF",
-                "关闭时使用输入法原生卡片颜色", "原生")
+                "原生")
         ))
     }
 
@@ -272,7 +272,6 @@ class AppearancePage(
         key: String,
         opacityKey: String?,
         defaultHex: String,
-        offHint: String,
         offSummary: String
     ) = Option(title, subtitle, focus, {
         val p = stylePrefs()
@@ -289,7 +288,7 @@ class AppearancePage(
             onColor = { stylePrefs().edit().putString(key, it).apply() },
             onOpacity = { value -> opacityKey?.let { stylePrefs().edit().putInt(it, value).apply() } }
         )
-        val toggle = switchRow(panel, "自定义颜色", offHint, saved.isNotBlank()) { checked ->
+        val toggle = switchRow(panel, "自定义颜色", "", saved.isNotBlank()) { checked ->
             editor.root.visibility = if (checked) View.VISIBLE else View.GONE
             stylePrefs().edit().putString(key, if (checked) editor.hex else "").apply()
         }
@@ -302,11 +301,10 @@ class AppearancePage(
     private fun buildProfilePanel(panel: LinearLayout) {
         val hint = note(panel, "")
         fun updateHint(follow: Boolean) {
-            hint.text = if (follow) "键盘会跟随系统深浅色自动切换，下方选择要编辑哪一套配置。"
-            else "键盘固定使用所选配置，两套配置分别保存。"
+            hint.text = if (follow) "选择要编辑的配置" else "键盘固定使用所选配置"
         }
         val follow = prefs.getBoolean(AppearanceProfiles.FOLLOW_SYSTEM, false)
-        switchRow(panel, "跟随系统切换深浅色", "开启后浅色和深色模式下分别使用对应配置", follow) { checked ->
+        switchRow(panel, "跟随系统切换深浅色", "", follow) { checked ->
             prefs.edit().putBoolean(AppearanceProfiles.FOLLOW_SYSTEM, checked)
                 .putBoolean(AppearanceProfiles.MANUAL_DARK, editingDark).apply()
             updateHint(checked)
@@ -376,8 +374,7 @@ class AppearancePage(
         val config = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val warning = warningText(panel)
         val enabled = prefs.getBoolean(ConfigManager.KEY_SCRIM_ENABLED, true)
-        val toggle = switchRow(panel, "启用可读性底色",
-            "在键盘背景下垫一层底色；背景完全不透明时看不到。开关对深浅色配置共用。", enabled) { checked ->
+        val toggle = switchRow(panel, "启用可读性底色", "深浅色配置共用", enabled) { checked ->
             prefs.edit().putBoolean(ConfigManager.KEY_SCRIM_ENABLED, checked).apply()
             config.visibility = if (checked) View.VISIBLE else View.GONE
             updateWarning(warning)
@@ -396,8 +393,7 @@ class AppearancePage(
         val editor = ColorEditor(config, saved.ifBlank { "#121212" }, null,
             onColor = { stylePrefs().edit().putString(ConfigManager.KEY_SCRIM_COLOR, it).apply() },
             onOpacity = {})
-        val custom = switchRow(config, "自定义底色颜色", "关闭时按字体颜色自动取色：浅色字配深底，深色字配浅底",
-            saved.isNotBlank()) { checked ->
+        val custom = switchRow(config, "自定义底色颜色", "", saved.isNotBlank()) { checked ->
             editor.root.visibility = if (checked) View.VISIBLE else View.GONE
             stylePrefs().edit().putString(ConfigManager.KEY_SCRIM_COLOR, if (checked) editor.hex else "").apply()
         }
@@ -428,20 +424,20 @@ class AppearancePage(
 
     private fun updateCombinedOpacity(view: TextView) {
         val scrim = activeScrimOpacity()
-        view.visibility = if (scrim > 0) View.VISIBLE else View.GONE
+        // A low result is already reported by the warning below.
+        view.visibility = if (scrim > 0 && (scrim >= 100 || effectiveOpacity() >= LOW_OPACITY)) View.VISIBLE else View.GONE
         view.text = if (scrim >= 100) {
-            "可读性底色为 100%，会完全盖住背景，调这里看不出变化。想要透明效果，请先调低「可读性底色」。"
+            "可读性底色为 100%，背景透明度不会生效"
         } else {
-            "叠加可读性底色 $scrim% 后，键盘整体不透明度约 ${effectiveOpacity()}%，不会低于 $scrim%。"
+            "叠加底色后整体约 ${effectiveOpacity()}%"
         }
     }
 
     /** Warn when the keyboard, scrim included, is mostly see-through. */
     private fun updateWarning(view: TextView) {
         val effective = effectiveOpacity()
-        view.visibility = if (effective < 40) View.VISIBLE else View.GONE
-        view.text = "键盘整体不透明度约 $effective%，在浅色或深色背景的应用中，" +
-            "按键和候选字可能看不清。建议开启可读性底色并调到 30% 以上。"
+        view.visibility = if (effective < LOW_OPACITY) View.VISIBLE else View.GONE
+        view.text = "整体仅约 $effective%，文字可能看不清，建议调高可读性底色"
     }
 
     // ------------------------------------------------------- floating preview
@@ -586,7 +582,7 @@ class AppearancePage(
         val style = readStyle()
         preview.style = style
         previewHint.text = "编辑" + (if (editingDark) "深色" else "浅色") + "配置" +
-            if (!style.enabled) " · 未启用，显示原生样式" else ""
+            if (!style.enabled) " · 未启用" else ""
         rows.forEach { row ->
             val summary = row.option.summary()
             row.value.text = summary.text
@@ -890,6 +886,8 @@ class AppearancePage(
     companion object {
         private const val STATE_EDITING_DARK = "editing_dark"
         private const val UI_PREFS = "ui_state"
+        /** Below this overall opacity, keys may be hard to read. */
+        private const val LOW_OPACITY = 40
         private const val KEY_PREVIEW_LARGE = "floating_preview_large"
         private const val KEY_PREVIEW_COLLAPSED = "floating_preview_collapsed"
         private const val PREVIEW_ASPECT = 0.6f
