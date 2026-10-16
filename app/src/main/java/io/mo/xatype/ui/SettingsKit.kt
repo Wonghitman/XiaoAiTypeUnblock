@@ -179,26 +179,6 @@ internal class SettingsKit(val context: Context) {
         return row
     }
 
-    /** A row whose whole surface opens [detail]. */
-    fun detailRow(title: CharSequence, subtitle: CharSequence?, detail: Detail, iconRes: Int? = null): LinearLayout {
-        val row = row()
-        addLeading(row, iconRes)
-        row.addView(titleBlock(title, subtitle, singleLine = true), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        row.addView(trailingIcon(R.drawable.ic_info),
-            LinearLayout.LayoutParams(dp(20), dp(20)).apply { marginStart = dimen(R.dimen.space_sm) })
-        row.setOnClickListener { InfoSheet.show(context, title, detail) }
-        return row
-    }
-
-    /** A non-interactive row: icon, title and one line of text. */
-    fun staticRow(title: CharSequence, subtitle: CharSequence?, iconRes: Int? = null) = row().apply {
-        isClickable = false
-        isFocusable = false
-        foreground = null
-        addLeading(this, iconRes)
-        addView(titleBlock(title, subtitle), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-    }
-
     fun seekBar(max: Int, value: Int, description: String) = SeekBar(context).apply {
         this.max = max
         progress = value

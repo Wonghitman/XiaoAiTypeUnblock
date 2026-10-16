@@ -10,7 +10,7 @@ import io.mo.xatype.ui.SettingsKit.Detail
 /** A plain on/off hook setting: a one-line [summary] under the title, caveats in an optional [detail]. */
 internal class Feature(val key: String, val title: String, val summary: String, val detail: Detail? = null)
 
-/** Every feature's wording, shared by the settings tabs and the guide page. */
+/** Every feature's wording, used by the settings tabs. */
 internal object FeatureCatalog {
 
     val purifyGroups = listOf(
@@ -21,23 +21,14 @@ internal object FeatureCatalog {
         ),
         "系统与机型限制" to listOf(
             Feature(ConfigManager.KEY_OS_VERSION_UNBLOCK, "澎湃 OS4+ 版本限制解除", "旧系统与第三方 ROM 也能使用"),
-            Feature(ConfigManager.KEY_AI_ABILITY_UNLOCK, "解除 AI 功能机型限制", "显示被机型限制隐藏的 AI 入口", Detail(
-                "放开按机型、区域或配置白名单屏蔽的端侧 AI 能力入口。",
-                notes = listOf("部分能力仍需 AI 服务实际支持，入口出现不代表一定可用。")
-            ))
+            Feature(ConfigManager.KEY_AI_ABILITY_UNLOCK, "解除 AI 功能机型限制", "显示被机型限制隐藏的 AI 入口")
         ),
         "剪贴板" to listOf(
-            Feature(ConfigManager.KEY_CLIPBOARD_SENSITIVE, "剪贴板敏感标记忽略绕过", "敏感内容也能记录与联想", Detail(
-                "被应用标记为敏感的复制内容，也会进入剪贴板快捷记录并参与联想。",
-                notes = listOf("这类内容可能包含密码或验证码，请按需开启。")
-            )),
+            Feature(ConfigManager.KEY_CLIPBOARD_SENSITIVE, "剪贴板敏感标记忽略绕过", "敏感内容也能记录与联想"),
             Feature(ConfigManager.KEY_CLIPBOARD_PERMANENT, "剪贴板永久保存", "不限条数、时长与文字长度")
         ),
         "隐私" to listOf(
-            Feature(ConfigManager.KEY_TELEMETRY_BLOCK, "遥测与埋点拦截", "关闭小米统计与广告监控上报", Detail(
-                "拦截小米 OneTrack 统计与广告监控上报。",
-                notes = listOf("不包含讯飞输入内核自身的遥测。")
-            ))
+            Feature(ConfigManager.KEY_TELEMETRY_BLOCK, "遥测与埋点拦截", "关闭小米统计与广告监控上报")
         )
     )
 
@@ -49,7 +40,7 @@ internal object FeatureCatalog {
         ))
 
     val keyboardHeight = Feature(ConfigManager.KEY_KEYBOARD_HEIGHT_UNBLOCK, "解除键盘高度上限",
-        "可继续向上拉伸，仅支持 0.2.1053")
+        "可继续向上拉伸")
 
     val bottomSpacing = Feature(ConfigManager.KEY_BOTTOM_SPACING_ENABLED, "自定义键盘底部间距",
         "调节按键下方的留白")

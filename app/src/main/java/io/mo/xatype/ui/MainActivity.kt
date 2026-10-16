@@ -311,14 +311,13 @@ class MainActivity : AppCompatActivity() {
             }.view
         ))
 
-        val more = mutableListOf<View>()
         if (BuildConfig.INPUT_DIAGNOSTICS) {
-            more += kit.navRow("平板输入与外观诊断", "采集 / 导出日志", R.drawable.ic_bug) {
-                startActivity(Intent(this, io.mo.xatype.diagnostics.DiagnosticsActivity::class.java))
-            }
+            kit.group(root, "更多", listOf(
+                kit.navRow("平板输入与外观诊断", "采集 / 导出日志", R.drawable.ic_bug) {
+                    startActivity(Intent(this, io.mo.xatype.diagnostics.DiagnosticsActivity::class.java))
+                }
+            ))
         }
-        more += kit.navRow("使用说明", null, R.drawable.ic_info) { showGuide() }
-        kit.group(root, "更多", more)
     }
 
     /** A small card with a count; tapping it opens [tab]. Returns the value view. */
@@ -451,11 +450,11 @@ class MainActivity : AppCompatActivity() {
             bottomSpacingRow()
         ))
 
-        kit.group(root, "输入方案（实验）", listOf(
-            kit.navRow("形码输入", "虎码 / 五笔，导入码表使用", R.drawable.ic_text_fields) {
+        kit.group(root, "输入方案", listOf(
+            kit.navRow("形码输入", null, R.drawable.ic_text_fields) {
                 startActivity(Intent(this, ShapeInputActivity::class.java))
             },
-            kit.navRow("18 键键盘", "离线拼音 · 可交互预览（原型）", R.drawable.ic_nav_keyboard) {
+            kit.navRow("18 键键盘", null, R.drawable.ic_nav_keyboard) {
                 startActivity(Intent(this, Keyboard18Activity::class.java))
             }
         ))
@@ -522,8 +521,6 @@ class MainActivity : AppCompatActivity() {
         onChange?.invoke(checked)
         if (needsRestart) markRestartNeeded()
     }
-
-    private fun showGuide() = startActivity(Intent(this, GuideActivity::class.java))
 
     private companion object {
         const val STATE_TAB = "main_tab"
