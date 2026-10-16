@@ -11,7 +11,6 @@ import android.graphics.PathMeasure
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
-import android.util.TypedValue
 import android.view.Choreographer
 import android.view.MotionEvent
 import android.view.View
@@ -47,7 +46,6 @@ internal class SplashView(context: Context) : View(context), Choreographer.Frame
 
     private val density = resources.displayMetrics.density
     private fun dp(value: Float) = value * density
-    private fun sp(value: Float) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, value, resources.displayMetrics)
 
     private val background = context.getColor(R.color.surface_light)
     private val keyFill = context.getColor(R.color.surface_raised)
@@ -58,8 +56,6 @@ internal class SplashView(context: Context) : View(context), Choreographer.Frame
     private val cleanFill = context.getColor(R.color.primary_container)
     private val primary = context.getColor(R.color.primary)
     private val onPrimary = context.getColor(R.color.on_primary)
-    private val textPrimary = context.getColor(R.color.text_primary)
-    private val textSecondary = context.getColor(R.color.text_secondary)
 
     private val keys = buildList {
         ROWS.forEachIndexed { row, letters ->
@@ -74,15 +70,6 @@ internal class SplashView(context: Context) : View(context), Choreographer.Frame
         textAlign = Paint.Align.CENTER
         typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
     }
-    private val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        textAlign = Paint.Align.CENTER
-        typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-        color = textPrimary
-    }
-    private val taglinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        textAlign = Paint.Align.CENTER
-        color = textSecondary
-    }
     private val scanPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val scanMatrix = Matrix()
     private val checkPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -90,9 +77,6 @@ internal class SplashView(context: Context) : View(context), Choreographer.Frame
         strokeCap = Paint.Cap.ROUND
         strokeJoin = Paint.Join.ROUND
     }
-
-    private val title = context.getString(R.string.app_name)
-    private val tagline = context.getString(R.string.splash_tagline)
 
     // Layout, computed in onSizeChanged.
     private val keyboard = RectF()
@@ -105,8 +89,6 @@ internal class SplashView(context: Context) : View(context), Choreographer.Frame
     private val checkPath = Path()
     private val checkSegment = Path()
     private val checkMeasure = PathMeasure()
-    private var titleY = 0f
-    private var taglineY = 0f
     private var scanHalfWidth = 0f
 
     private var startNanos = 0L
@@ -116,7 +98,7 @@ internal class SplashView(context: Context) : View(context), Choreographer.Frame
     private var running = false
 
     init {
-        contentDescription = title
+        contentDescription = context.getString(R.string.app_name)
         isClickable = true
     }
 
@@ -197,7 +179,7 @@ internal class SplashView(context: Context) : View(context), Choreographer.Frame
 
         iconSize = dp(ICON_SIZE_DP)
         iconCx = w / 2f
-        iconCy = centerY - dp(ICON_LIFT_DP)
+        iconCy = centerY
         val iconLeft = iconCx - iconSize / 2f
         val iconTop = iconCy - iconSize / 2f
         superellipse(tilePath, iconCx, iconCy, iconSize / 2f)
@@ -211,12 +193,6 @@ internal class SplashView(context: Context) : View(context), Choreographer.Frame
         checkPath.transform(toIcon)
         checkMeasure.setPath(checkPath, false)
         checkPaint.strokeWidth = CHECK_STROKE / VIEWPORT * iconSize
-
-        val available = w - dp(TEXT_SIDE_MARGIN_DP) * 2
-        fitText(titlePaint, title, sp(TITLE_SIZE_SP), available)
-        fitText(taglinePaint, tagline, sp(TAGLINE_SIZE_SP), available)
-        titleY = iconTop + iconSize + dp(TITLE_GAP_DP) - titlePaint.ascent()
-        taglineY = titleY + titlePaint.descent() + dp(TAGLINE_GAP_DP) - taglinePaint.ascent()
 
         scanHalfWidth = dp(SCAN_HALF_WIDTH_DP)
         val glow = ColorUtils.setAlphaComponent(primary, SCAN_GLOW_ALPHA)
@@ -237,7 +213,6 @@ internal class SplashView(context: Context) : View(context), Choreographer.Frame
             if (scan > 0f && scan < 1f) drawScan(canvas, scanX, scan)
         }
         drawIcon(canvas, t)
-        drawText(canvas, t)
     }
 
     private fun drawKey(canvas: Canvas, key: Key, t: Float, scanX: Float, scan: Float, gather: Float) {
@@ -342,19 +317,6 @@ internal class SplashView(context: Context) : View(context), Choreographer.Frame
         canvas.restore()
     }
 
-    private fun drawText(canvas: Canvas, t: Float) {
-        val titleIn = easeOut(progress(t, TEXT_START_MS, TEXT_MS))
-        if (titleIn > 0f) {
-            titlePaint.alpha = (titleIn * 255).toInt()
-            canvas.drawText(title, iconCx, titleY + (1f - titleIn) * dp(TEXT_RISE_DP), titlePaint)
-        }
-        val taglineIn = easeOut(progress(t, TEXT_START_MS + TAGLINE_DELAY_MS, TEXT_MS))
-        if (taglineIn > 0f) {
-            taglinePaint.alpha = (taglineIn * 255).toInt()
-            canvas.drawText(tagline, iconCx, taglineY + (1f - taglineIn) * dp(TEXT_RISE_DP), taglinePaint)
-        }
-    }
-
     private companion object {
         val ROWS = listOf("QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM")
         /** Keys shown masked, as the input method does with blocked content. */
@@ -373,15 +335,9 @@ internal class SplashView(context: Context) : View(context), Choreographer.Frame
         const val LETTER_FRACTION = 0.4f
         const val REDACTION_WIDTH = 0.56f
         const val REDACTION_HEIGHT = 0.16f
-        const val CENTER_FRACTION = 0.44f
+        /** Slightly above the middle, where the eye reads as centered. */
+        const val CENTER_FRACTION = 0.46f
         const val ICON_SIZE_DP = 96f
-        const val ICON_LIFT_DP = 24f
-        const val TITLE_SIZE_SP = 20f
-        const val TAGLINE_SIZE_SP = 13f
-        const val TITLE_GAP_DP = 28f
-        const val TAGLINE_GAP_DP = 8f
-        const val TEXT_SIDE_MARGIN_DP = 24f
-        const val TEXT_RISE_DP = 8f
         const val ENTER_RISE_DP = 12f
         const val SCAN_HALF_WIDTH_DP = 32f
         const val SCAN_OVERHANG_DP = 10f
@@ -418,10 +374,7 @@ internal class SplashView(context: Context) : View(context), Choreographer.Frame
         const val CHECK_MS = 260f
         const val PULSE_START_MS = 1380f
         const val PULSE_MS = 480f
-        const val TEXT_START_MS = 1220f
-        const val TAGLINE_DELAY_MS = 80f
-        const val TEXT_MS = 360f
-        const val EXIT_AT_MS = 1780f
+        const val EXIT_AT_MS = 1620f
         const val EXIT_MS = 280f
         const val EXIT_SCALE = 0.04f
 
@@ -453,12 +406,6 @@ internal class SplashView(context: Context) : View(context), Choreographer.Frame
                 if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
             }
             path.close()
-        }
-
-        fun fitText(paint: Paint, text: String, size: Float, available: Float) {
-            paint.textSize = size
-            val width = paint.measureText(text)
-            if (width > available) paint.textSize = size * available / width
         }
     }
 }
