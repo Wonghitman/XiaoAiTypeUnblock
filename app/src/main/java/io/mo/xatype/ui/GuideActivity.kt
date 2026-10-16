@@ -10,7 +10,7 @@ import androidx.core.widget.NestedScrollView
 import io.mo.xatype.BuildConfig
 import io.mo.xatype.R
 
-/** The usage guide: page map, every feature with its detail sheet, and how changes apply. */
+/** The usage guide: every feature, with a detail sheet where it has caveats. */
 class GuideActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -41,26 +41,16 @@ class GuideActivity : AppCompatActivity() {
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         setContentView(root)
 
-        kit.group(content, "页面分区", listOf(
-            kit.staticRow("概览", "运行状态、重启输入法与模块设置", R.drawable.ic_nav_home),
-            kit.staticRow("净化", "内容风控、系统限制、剪贴板与隐私", R.drawable.ic_nav_shield),
-            kit.staticRow("键盘", "快捷操作、尺寸布局与实验输入方案", R.drawable.ic_nav_keyboard),
-            kit.staticRow("外观", "圆角、背景、文字、键帽与卡片颜色", R.drawable.ic_nav_palette)
-        ), first = true)
-
-        FeatureCatalog.purifyGroups.forEach { (title, features) ->
-            kit.group(content, title, features.map { kit.detailRow(it.title, it.summary, it.detail) })
+        fun row(feature: Feature) = feature.detail?.let { kit.detailRow(feature.title, feature.summary, it) }
+            ?: kit.staticRow(feature.title, feature.summary)
+        FeatureCatalog.purifyGroups.forEachIndexed { index, (title, features) ->
+            kit.group(content, title, features.map(::row), first = index == 0)
         }
-        kit.group(content, "键盘", FeatureCatalog.keyboardFeatures.map { kit.detailRow(it.title, it.summary, it.detail) })
-        kit.group(content, "外观", listOf(
-            kit.detailRow("键盘外观个性化", "圆角、透明度、液态玻璃与配色", FeatureCatalog.appearance)
-        ))
-
-        content.addView(kit.sectionHeader("生效方式"))
-        content.addView(kit.textCard("修改设置后，底部会出现提示条。点「立即重启」通过 Root 重启输入法即可生效。"))
+        kit.group(content, "键盘", FeatureCatalog.keyboardFeatures.map(::row))
+        kit.group(content, "外观", listOf(kit.staticRow("键盘外观个性化", "圆角、透明度、液态玻璃与配色")))
 
         content.addView(kit.label(
-            "版本 ${BuildConfig.VERSION_NAME}\n基于 libxposed API 102 (Modern Xposed 规范)\n支持 LSPosed v2.1.0+ 及模块自动热重载",
+            "版本 ${BuildConfig.VERSION_NAME} · 需要 LSPosed v2.1.0+",
             12f, R.color.text_secondary
         ).apply {
             gravity = Gravity.CENTER

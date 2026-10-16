@@ -115,8 +115,6 @@ internal class SettingsKit(val context: Context) {
     class Detail(
         val about: CharSequence,
         val notes: List<CharSequence> = emptyList(),
-        /** Internal names and mechanisms, for readers who want them. */
-        val technical: CharSequence? = null,
         /** Extra content placed after [about], such as a key map. */
         val extra: ((SettingsKit) -> View)? = null
     )
@@ -128,7 +126,7 @@ internal class SettingsKit(val context: Context) {
     }
 
     /** A 48dp target that opens the detail sheet without toggling the row. */
-    fun infoButton(title: CharSequence, detail: Detail) = ImageView(context).apply {
+    private fun infoButton(title: CharSequence, detail: Detail) = ImageView(context).apply {
         setImageResource(R.drawable.ic_info)
         imageTintList = ColorStateList.valueOf(color(R.color.text_secondary))
         scaleType = ImageView.ScaleType.CENTER_INSIDE
@@ -199,13 +197,6 @@ internal class SettingsKit(val context: Context) {
         foreground = null
         addLeading(this, iconRes)
         addView(titleBlock(title, subtitle), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-    }
-
-    /** A card holding a paragraph of body text. */
-    fun textCard(text: CharSequence) = card().apply {
-        val pad = dimen(R.dimen.settings_row_padding)
-        setPadding(pad, dimen(R.dimen.space_md), pad, dimen(R.dimen.space_md))
-        addView(label(text, 14f, R.color.text_primary).apply { setLineSpacing(dp(3).toFloat(), 1f) })
     }
 
     fun seekBar(max: Int, value: Int, description: String) = SeekBar(context).apply {

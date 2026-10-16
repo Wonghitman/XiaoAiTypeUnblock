@@ -15,7 +15,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import io.mo.xatype.R
 
-/** A bottom sheet that explains one setting: what it does, caveats and technical detail. */
+/** A bottom sheet that explains one setting: what it does and its caveats. */
 internal object InfoSheet {
 
     fun show(context: Context, title: CharSequence, detail: SettingsKit.Detail) {
@@ -45,16 +45,6 @@ internal object InfoSheet {
             detail.notes.forEach { note ->
                 body.addView(bullet(context, kit, note), spaced(kit, R.dimen.space_sm))
             }
-        }
-        detail.technical?.let {
-            body.addView(heading(kit, "技术细节"), spaced(kit, R.dimen.space_xl))
-            body.addView(kit.label(it, 13f, R.color.text_secondary).apply {
-                setBackgroundResource(R.drawable.bg_sheet_note)
-                val pad = kit.dimen(R.dimen.space_md)
-                setPadding(pad, pad, pad, pad)
-                setLineSpacing(kit.dp(2).toFloat(), 1f)
-                setTextIsSelectable(true)
-            }, spaced(kit, R.dimen.space_sm))
         }
         val maxBodyHeight = (context.resources.displayMetrics.heightPixels * 0.6f).toInt()
         sheet.addView(BoundedScrollView(context, maxBodyHeight).apply {

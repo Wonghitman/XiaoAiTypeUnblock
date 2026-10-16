@@ -299,20 +299,14 @@ class MainActivity : AppCompatActivity() {
 
         val launcherAlias = ComponentName(this, "$packageName.ui.LauncherAlias")
         kit.group(root, "模块设置", listOf(
-            prefSwitch(ConfigManager.KEY_VERBOSE_LOG, "输出详细调试日志", "在 Logcat 中打印拦截详情",
+            prefSwitch(ConfigManager.KEY_VERBOSE_LOG, "输出详细调试日志", "",
                 needsRestart = false).view,
-            kit.switchRow("启动动画", "打开设置页时播放净化动画",
-                prefs.getBoolean(ConfigManager.KEY_SPLASH_ANIMATION, true),
-                detail = SettingsKit.Detail("打开设置页时先播放一段净化动画。",
-                    notes = listOf("轻触可跳过。", "系统关闭动画时自动省略。"))
-            ) { checked ->
+            kit.switchRow("启动动画", null, prefs.getBoolean(ConfigManager.KEY_SPLASH_ANIMATION, true)) { checked ->
                 prefs.edit().putBoolean(ConfigManager.KEY_SPLASH_ANIMATION, checked).apply()
             }.view,
             // Component state, not a preference: the launcher reads it directly.
             kit.switchRow("隐藏桌面图标", "可从 LSPosed 管理器进入设置",
-                packageManager.getComponentEnabledSetting(launcherAlias) == PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                detail = SettingsKit.Detail("隐藏后桌面不再显示本模块的图标。",
-                    notes = listOf("在 LSPosed 管理器的模块列表中点击本模块，即可进入设置。"))
+                packageManager.getComponentEnabledSetting(launcherAlias) == PackageManager.COMPONENT_ENABLED_STATE_DISABLED
             ) { hide ->
                 packageManager.setComponentEnabledSetting(
                     launcherAlias,
@@ -334,7 +328,7 @@ class MainActivity : AppCompatActivity() {
                 startActivity(Intent(this, io.mo.xatype.diagnostics.DiagnosticsActivity::class.java))
             }
         }
-        more += kit.navRow("使用说明", "模块功能与工作方式", R.drawable.ic_info) { showGuide() }
+        more += kit.navRow("使用说明", null, R.drawable.ic_info) { showGuide() }
         kit.group(root, "更多", more)
     }
 

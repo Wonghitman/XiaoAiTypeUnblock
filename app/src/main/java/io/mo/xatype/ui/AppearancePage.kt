@@ -169,7 +169,7 @@ class AppearancePage(
         root.addView(kit.sectionHeader("总开关", first = true))
         root.addView(card().apply {
             val row = horizontalRow()
-            row.addView(titleBlock("启用键盘外观个性化", "关闭时键盘保持原生样式"),
+            row.addView(titleBlock("启用键盘外观个性化", ""),
                 LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
             styleSwitch = SwitchCompat(context).apply {
                 isChecked = prefs.getBoolean(ConfigManager.KEY_STYLE_ENABLED, false)
@@ -179,8 +179,6 @@ class AppearancePage(
                     onConfigChanged()
                 }
             }
-            row.addView(kit.infoButton("键盘外观个性化", FeatureCatalog.appearance),
-                LinearLayout.LayoutParams(dp(48), dp(48)))
             row.addView(styleSwitch)
             row.setOnClickListener { styleSwitch.toggle() }
             addView(row)
@@ -200,13 +198,13 @@ class AppearancePage(
                     stylePrefs().edit().putInt(ConfigManager.KEY_CORNER_RADIUS, it).apply()
                 }
             },
-            Option("背景类型", "动态毛玻璃或纯色背景", Focus.BACKGROUND, {
+            Option("背景类型", "", Focus.BACKGROUND, {
                 val p = stylePrefs()
                 if (p.getInt(ConfigManager.KEY_BG_TYPE, 0) == 1) {
                     Summary("纯色", parseColor(p.getString(ConfigManager.KEY_BG_COLOR, "")))
                 } else Summary("动态毛玻璃")
             }, ::buildBackgroundPanel),
-            Option("背景不透明度", "100% 保留原背景，越低越透明", Focus.BACKGROUND,
+            Option("背景不透明度", "", Focus.BACKGROUND,
                 { Summary("${stylePrefs().getInt(ConfigManager.KEY_OPACITY, 85)}%") }) { panel ->
                 val warning = warningText(panel)
                 val combined = note(panel, "")
