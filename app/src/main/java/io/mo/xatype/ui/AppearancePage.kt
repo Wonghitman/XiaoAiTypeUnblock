@@ -121,7 +121,11 @@ class AppearancePage(
         root.viewTreeObserver.addOnGlobalLayoutListener {
             val typing = ViewCompat.getRootWindowInsets(root)?.isVisible(WindowInsetsCompat.Type.ime()) == true
             val visibility = if (typing) View.INVISIBLE else View.VISIBLE
-            if (floating.visibility != visibility) floating.visibility = visibility
+            if (floating.visibility != visibility) {
+                floating.visibility = visibility
+                // The IME changes the space available below the preview as well as its visibility.
+                if (overlay.visibility == View.VISIBLE) placePanel()
+            }
         }
 
         options = root.findViewById(R.id.layoutOptions)

@@ -6,8 +6,15 @@
         <item name="colorPrimary">@color/primary</item>
         <item name="colorPrimaryDark">@color/primary_variant</item>
         <item name="colorAccent">@color/primary</item>
-        <item name="android:statusBarColor">@color/surface_light</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">true</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <style name="Theme.XiaoAiTypeUnblock.Sheet" parent="Theme.AppCompat.DayNight.Dialog">
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">true</item>
     </style>
 
     <!-- The window and its dim only fade; the sheet itself slides on a spring. -->

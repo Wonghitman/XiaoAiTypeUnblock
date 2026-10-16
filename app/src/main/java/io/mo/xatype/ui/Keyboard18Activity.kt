@@ -20,9 +20,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatButton
 import androidx.appcompat.widget.SwitchCompat
 import androidx.appcompat.widget.Toolbar
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.core.widget.NestedScrollView
 import io.mo.xatype.config.ConfigManager
 import io.mo.xatype.keyboard.KeyboardShortcuts
@@ -188,14 +185,7 @@ class Keyboard18Activity : AppCompatActivity() {
         }, LinearLayout.LayoutParams(-1, -2))
         root.addView(footer)
         setContentView(root)
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            view.setPadding(bars.left, bars.top, bars.right, bars.bottom); insets
-        }
-        window.statusBarColor = style.background; window.navigationBarColor = style.surface
-        WindowCompat.getInsetsController(window, root).apply {
-            isAppearanceLightStatusBars = !style.dark; isAppearanceLightNavigationBars = !style.dark }
+        SettingsWindow.apply(window, root, topBar = toolbar, bottomBar = footer)
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
         labels(); updateStatus(); prepareDictionary()
     }

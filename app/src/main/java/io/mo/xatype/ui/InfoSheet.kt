@@ -91,7 +91,7 @@ internal object InfoSheet {
     }
 
     /** Slides [panel] up on open and back down before every dismissal by back, outside tap or button. */
-    private class Sheet(context: Context, private val panel: View) : Dialog(context) {
+    private class Sheet(context: Context, private val panel: View) : Dialog(context, R.style.Theme_XiaoAiTypeUnblock_Sheet) {
         private val spring = SpringAnimator(SpringAnimator.STANDARD_STIFFNESS, SpringAnimator.STANDARD_DAMPING) {
             panel.translationY = it
         }
@@ -106,6 +106,7 @@ internal object InfoSheet {
                 setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
                 setGravity(Gravity.BOTTOM)
                 setWindowAnimations(R.style.Animation_XiaoAiTypeUnblock_Sheet)
+                SettingsWindow.apply(this, panel, insetTop = false)
             }
             // Start below the screen on the first frame so the panel never flashes in place.
             panel.viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {

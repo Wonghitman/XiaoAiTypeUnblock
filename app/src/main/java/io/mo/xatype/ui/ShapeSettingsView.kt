@@ -51,6 +51,8 @@ internal class ShapeSettingsView(context: Context, private val actions: Actions)
     )
 
     val style = ShapeUiStyle(context)
+    val toolbar: Toolbar
+    val footer: FrameLayout
     private val toggles = LinkedHashMap<String, SwitchCompat>()
     private val interactive = ArrayList<View>()
     private val dictionaryControls = ArrayList<View>()
@@ -75,7 +77,7 @@ internal class ShapeSettingsView(context: Context, private val actions: Actions)
     init {
         orientation = VERTICAL
         setBackgroundColor(style.background)
-        addView(Toolbar(context).apply {
+        toolbar = Toolbar(context).apply {
             title = "形码输入"
             setTitleTextColor(style.primary)
             setNavigationIcon(androidx.appcompat.R.drawable.abc_ic_ab_back_material)
@@ -95,7 +97,8 @@ internal class ShapeSettingsView(context: Context, private val actions: Actions)
                     setOnClickListener { actions.help() }
                 }
             }
-        }, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+        }
+        addView(toolbar, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
 
         val body = column().apply { setPadding(style.dp(LG), style.dp(SM), style.dp(LG), style.dp(XL)) }
         val scroll = NestedScrollView(context).apply {
@@ -192,7 +195,7 @@ internal class ShapeSettingsView(context: Context, private val actions: Actions)
             setOnClickListener { actions.help() }
         }, spaced(top = MD))
 
-        val footer = column().apply {
+        val footerContent = column().apply {
             setPadding(style.dp(LG), style.dp(MD), style.dp(LG), style.dp(MD))
             restart = AppCompatButton(context).apply {
                 text = "重启输入法"
@@ -211,10 +214,11 @@ internal class ShapeSettingsView(context: Context, private val actions: Actions)
             footerHint = text("通过 Root 重启，也可在系统设置中强制停止", CAPTION, style.secondary).apply { gravity = Gravity.CENTER }
             addView(footerHint, spaced(top = SM))
         }
-        addView(FrameLayout(context).apply {
+        footer = FrameLayout(context).apply {
             setBackgroundColor(style.surface)
-            addView(footer, centeredParams())
-        })
+            addView(footerContent, centeredParams())
+        }
+        addView(footer)
         setBusy(true, "正在准备内置码表…")
     }
 

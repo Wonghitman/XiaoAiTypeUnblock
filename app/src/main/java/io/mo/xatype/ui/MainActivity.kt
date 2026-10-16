@@ -69,6 +69,8 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        SettingsWindow.apply(window, findViewById(R.id.settingsRoot),
+            topBar = findViewById(R.id.toolbar), bottomBar = findViewById(R.id.navBar))
         kit = SettingsKit(this)
         prefs = ConfigManager.getLocalPrefs(this)
 

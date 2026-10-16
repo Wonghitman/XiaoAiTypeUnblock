@@ -20,7 +20,7 @@ class GuideActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(kit.color(R.color.background_light))
         }
-        root.addView(Toolbar(this).apply {
+        val toolbar = Toolbar(this).apply {
             title = "使用说明"
             setTitleTextColor(kit.color(R.color.text_primary))
             setBackgroundColor(kit.color(R.color.surface_light))
@@ -28,7 +28,8 @@ class GuideActivity : AppCompatActivity() {
             navigationIcon?.setTint(kit.color(R.color.text_primary))
             navigationContentDescription = "返回"
             setNavigationOnClickListener { finish() }
-        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, actionBarHeight()))
+        }
+        root.addView(toolbar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, actionBarHeight()))
         root.addView(View(this).apply { setBackgroundColor(kit.color(R.color.card_stroke)) },
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, kit.dimen(R.dimen.settings_divider_height)))
 
@@ -40,6 +41,7 @@ class GuideActivity : AppCompatActivity() {
         root.addView(NestedScrollView(this).apply { addView(content) },
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         setContentView(root)
+        SettingsWindow.apply(window, root, topBar = toolbar)
 
         fun row(feature: Feature) = feature.detail?.let { kit.detailRow(feature.title, feature.summary, it) }
             ?: kit.staticRow(feature.title, feature.summary)

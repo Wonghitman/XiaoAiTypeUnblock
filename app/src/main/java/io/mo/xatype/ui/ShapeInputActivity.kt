@@ -9,7 +9,6 @@ import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.WindowCompat
 import io.mo.xatype.shape.ShapeStore
 import java.util.concurrent.Executors
 
@@ -31,12 +30,7 @@ class ShapeInputActivity : AppCompatActivity() {
             retry = { prepareTable() }, toggle = ::saveToggle
         ))
         setContentView(page)
-        window.statusBarColor = page.style.background
-        window.navigationBarColor = page.style.surface
-        WindowCompat.getInsetsController(window, window.decorView).apply {
-            isAppearanceLightStatusBars = !page.style.dark
-            isAppearanceLightNavigationBars = !page.style.dark
-        }
+        SettingsWindow.apply(window, page, topBar = page.toolbar, bottomBar = page.footer)
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         prepareTable()
     }
