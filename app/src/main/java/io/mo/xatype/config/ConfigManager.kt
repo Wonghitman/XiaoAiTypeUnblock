@@ -23,6 +23,7 @@ object ConfigManager {
     const val KEY_BOTTOM_SPACING_ENABLED = "pref_bottom_spacing_enabled"
     const val KEY_BOTTOM_SPACING = "pref_bottom_spacing" // 0 to 100 dp; global geometry
     const val KEY_VERBOSE_LOG = "pref_verbose_log"
+    const val KEY_SPLASH_ANIMATION = "pref_splash_animation" // Settings app only; defaults to on
 
     // Style & Appearance Configs
     const val KEY_STYLE_ENABLED = "pref_style_enabled"

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The system splash shows only the splash background, the same color as
+         the first frame of the in-app launch animation, so the two read as one. -->
+    <style name="Platform.Theme.XiaoAiTypeUnblock" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:windowSplashScreenBackground">@color/surface_light</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@android:color/transparent</item>
+    </style>
+</resources>

@@ -1,5 +1,6 @@
 package io.mo.xatype.ui
 
+import android.animation.ValueAnimator
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -13,6 +14,7 @@ import android.os.Bundle
 import android.view.Gravity
 import android.view.MenuItem
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -120,6 +122,12 @@ class MainActivity : AppCompatActivity() {
         if (savedInstanceState?.getBoolean(STATE_RESTART_PENDING) == true) markRestartNeeded()
         selectTab(savedInstanceState?.getInt(STATE_TAB, TAB_HOME) ?: TAB_HOME, animate = false)
         prefs.registerOnSharedPreferenceChangeListener(prefsListener)
+        // Only on a fresh launch: rotation and process restore go straight to the page.
+        if (savedInstanceState == null && prefs.getBoolean(ConfigManager.KEY_SPLASH_ANIMATION, true) &&
+            ValueAnimator.areAnimatorsEnabled()
+        ) {
+            showSplash()
+        }
     }
 
     override fun onResume() {
@@ -143,6 +151,24 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ------------------------------------------------------------ chrome
+
+    private fun showSplash() {
+        val content = findViewById<ViewGroup>(android.R.id.content)
+        val main = content.getChildAt(0)
+        main.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        val pageHost = findViewById<View>(R.id.pageHost)
+        val splash = SplashView(this)
+        splash.onExitStart = {
+            main.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
+            // The page rises into place as the splash fades away.
+            val rise = kit.dimen(R.dimen.space_lg).toFloat()
+            SpringAnimator(SpringAnimator.STANDARD_STIFFNESS, SpringAnimator.STANDARD_DAMPING) {
+                pageHost.translationY = it
+            }.start(rise, 0f)
+        }
+        splash.onFinished = { content.removeView(splash) }
+        content.addView(splash, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+    }
 
     private fun initToolbar() {
         val toolbar = findViewById<Toolbar>(R.id.toolbar)
@@ -302,6 +328,11 @@ class MainActivity : AppCompatActivity() {
         kit.group(root, "模块设置", listOf(
             prefSwitch(ConfigManager.KEY_VERBOSE_LOG, "输出详细调试日志", "在 Logcat 中打印 XiaoAiTypeUnblock 拦截详情",
                 needsRestart = false).view,
+            kit.switchRow("启动动画", "打开设置页时播放净化动画，轻触可跳过；系统关闭动画时自动省略",
+                prefs.getBoolean(ConfigManager.KEY_SPLASH_ANIMATION, true)
+            ) { checked ->
+                prefs.edit().putBoolean(ConfigManager.KEY_SPLASH_ANIMATION, checked).apply()
+            }.view,
             // Component state, not a preference: the launcher reads it directly.
             kit.switchRow("隐藏桌面图标", "隐藏后可在 LSPosed 管理器的模块列表中点击本模块进入设置",
                 packageManager.getComponentEnabledSetting(launcherAlias) == PackageManager.COMPONENT_ENABLED_STATE_DISABLED

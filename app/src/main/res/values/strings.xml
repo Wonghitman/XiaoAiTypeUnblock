@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name">超级小爱输入法净化</string>
     <string name="module_description">解除超级小爱输入法的内容风控、版本限制与系统剪贴板保存限制</string>
+    <string name="splash_tagline">解除风控限制 · 还原纯净输入</string>
     <string name="keyboard_shortcuts_title">按键下滑快捷操作</string>
     <string name="keyboard_shortcuts_description">适用于拼音九键、18 键与拼音/英文 26 键。九键 7/8/9 为全选/复制/粘贴，4/6 为段首/段尾；26 键 Z/C/V/B/M、18 键 Z/XC/V/BN/M 依次为全选、复制、粘贴、段首、段尾。按住对应键向下滑，字母随距离渐变为功能图标；轻震后松手执行，往回滑可取消。保留普通点击和原生长按菜单，重启输入法生效。</string>
 </resources>
