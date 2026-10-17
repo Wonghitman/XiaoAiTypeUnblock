@@ -39,10 +39,36 @@ internal object HostFingerprints {
         collector.put(HostSymbols.BOTTOM_SPACING, HostSymbols.BOTTOM_SPACING_CONSUME,
             HostSymbols.BOTTOM_SPACING_CALLERS) { bottomSpacing(bridge, loader) }
         val keyboard = KeyboardAbiFingerprints(bridge)
+        collector.put(HostSymbols.T9_SHUANGPIN_INIT, HostSymbols.T9_SHUANGPIN_BOOLEAN,
+            HostSymbols.T9_SHUANGPIN_STRING) { t9Shuangpin(bridge, loader) }
         KeyboardAbi.groups.forEach { group ->
             collector.put(group) { listOf(keyboard.resolve(group)) }
         }
         return collector.result()
+    }
+
+    /** T9 already passes digit groups to the native decoder's ShuangPin implementation. */
+    private fun t9Shuangpin(bridge: DexKitBridge, loader: ClassLoader): List<List<String>> {
+        val initialize = single(bridge.findMethod {
+            matcher {
+                paramCount(2)
+                returnType("void")
+                usingEqStrings("IflytekT9Engine initialized", "shuangpin_enabled", "shuangpin_scheme")
+            }
+        }.filter { method ->
+            method.paramTypeNames.firstOrNull() == SERVICE &&
+                method.usingFields.any { it.field.name == "INPUT_TYPE_CN_9" } &&
+                method.invokes.any { it.name == "updateShuangPinType" &&
+                    it.className == "com.iflytek.depend.common.pinyin.IPinYinEngine" }
+        }, "T9 ShuangPin initialization")
+        fun preference(returnType: String, parameters: List<String>): String = single(
+            initialize.invokes.filter { it.returnTypeName == returnType && it.paramTypeNames == parameters &&
+                Modifier.isStatic(it.getMethodInstance(loader).modifiers) }.distinctBy { it.descriptor },
+            "T9 ShuangPin $returnType preference"
+        ).descriptor
+        return listOf(listOf(initialize.descriptor),
+            listOf(preference("boolean", listOf("java.lang.String", "boolean"))),
+            listOf(preference("java.lang.String", listOf("java.lang.String", "java.lang.String"))))
     }
 
     /** Native margin helper; resource names survive R-field and class renaming. */

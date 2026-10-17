@@ -23,6 +23,7 @@ import androidx.appcompat.widget.Toolbar
 import androidx.core.widget.NestedScrollView
 import io.mo.xatype.config.ConfigManager
 import io.mo.xatype.keyboard.KeyboardShortcuts
+import io.mo.xatype.keyboard.ShuangpinScheme
 import io.mo.xatype.keyboard18.Keyboard18Dictionary
 import io.mo.xatype.keyboard18.Keyboard18Engine
 import io.mo.xatype.keyboard18.Keyboard18Keys
@@ -41,6 +42,8 @@ class Keyboard18Activity : AppCompatActivity() {
     private lateinit var candidateRow: LinearLayout
     private lateinit var languageButton: AppCompatButton
     private lateinit var shiftButton: AppCompatButton
+    private lateinit var schemeButton: AppCompatButton
+    private lateinit var inputHelp: TextView
     private val letterButtons = LinkedHashMap<String, AppCompatButton>()
     private val previewControls = ArrayList<View>()
     private val worker = Executors.newSingleThreadExecutor()
@@ -48,7 +51,7 @@ class Keyboard18Activity : AppCompatActivity() {
     private var english = false
     private var uppercase = false
     private var pendingRestart = false
-    private var loading = false
+    private var loadGeneration = 0
     private var restoreRaw = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -92,6 +95,31 @@ class Keyboard18Activity : AppCompatActivity() {
             }
         }
         settings.addView(enabled, LinearLayout.LayoutParams(-1, -2))
+        val initialSettings = Keyboard18Store.snapshot(this)
+        val doublePinyin = SwitchCompat(this).apply {
+            text = "18键双拼"
+            textSize = ShapeUiStyle.HEADING
+            setTextColor(style.primary)
+            minHeight = style.dp(ShapeUiStyle.BUTTON)
+            isChecked = initialSettings.getBoolean(Keyboard18Store.SHUANGPIN)
+            setOnCheckedChangeListener { view, checked ->
+                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                val snapshot = Keyboard18Store.snapshot(this@Keyboard18Activity)
+                saveShuangpin(checked, ShuangpinScheme.resolve(snapshot.getString(Keyboard18Store.SCHEME)))
+            }
+        }
+        settings.addView(doublePinyin, spaced())
+        schemeButton = button("双拼方案：${ShuangpinScheme.resolve(initialSettings.getString(Keyboard18Store.SCHEME)).title}") {
+            val schemes = ShuangpinScheme.entries
+            val selected = ShuangpinScheme.resolve(Keyboard18Store.snapshot(this).getString(Keyboard18Store.SCHEME))
+            AlertDialog.Builder(this).setTitle("18键双拼方案")
+                .setSingleChoiceItems(schemes.map { it.title }.toTypedArray(), schemes.indexOf(selected)) { dialog, index ->
+                    schemeButton.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                    saveShuangpin(doublePinyin.isChecked, schemes[index])
+                    dialog.dismiss()
+                }.setNegativeButton("取消", null).show()
+        }
+        settings.addView(schemeButton, spaced())
         settings.addView(text("重启应用设置后，在小爱「键盘选择」中选择「18键」。可直接切换拼音26键、虎码/五笔；此开关只控制入口显示。词库和输入均在本地。",
             ShapeUiStyle.CAPTION, secondary = true), spaced())
         status = text("", ShapeUiStyle.CAPTION, secondary = true)
@@ -99,8 +127,8 @@ class Keyboard18Activity : AppCompatActivity() {
         body.addView(settings, spaced())
 
         body.addView(text("试试18键", ShapeUiStyle.HEADING, strong = true), spaced())
-        body.addView(text("支持全拼和首字母简拼。例如「为什么」简拼 wsm：依次点 WE、SD、M。下方预览使用与宿主相同的离线解码器。",
-            ShapeUiStyle.CAPTION, secondary = true), spaced())
+        inputHelp = text("", ShapeUiStyle.CAPTION, secondary = true)
+        body.addView(inputHelp, spaced())
         val preview = card()
         output = EditText(this).apply {
             hint = "输入的文字显示在这里"
@@ -197,14 +225,22 @@ class Keyboard18Activity : AppCompatActivity() {
     }
     override fun onDestroy() { worker.shutdown(); super.onDestroy() }
     private fun prepareDictionary() {
-        if (loading) return
-        loading = true; previewControls.forEach { it.isEnabled = false }; progress.text = "正在准备离线词库…"
-        val raw = engine?.raw ?: restoreRaw
+        val generation = ++loadGeneration
+        val selectedScheme = Keyboard18Store.scheme(Keyboard18Store.snapshot(this))
+        previewControls.forEach { it.isEnabled = false }; progress.text = "正在准备离线词库…"
+        val raw = if (engine == null || engine?.scheme == selectedScheme) engine?.raw ?: restoreRaw else ""
+        restoreRaw = raw
+        engine = null
+        candidateRow.removeAllViews()
+        composing.text = ""
+        inputHelp.text = if (selectedScheme == null)
+            "支持全拼和首字母简拼，例如「为什么」简拼 wsm：依次点 WE、SD、M。" else
+            "${selectedScheme.title}：按双拼编码依次点对应的分组键；长按可选择准确字母。" +
+                if (selectedScheme.usesSemicolon) "分号韵母共用 L 键，也可长按 L 选择分号。" else ""
         worker.execute {
-            val loaded = runCatching { assets.open("keyboard18/pinyin.table").use(Keyboard18Dictionary::read) }
+            val loaded = runCatching { assets.open("keyboard18/pinyin.table").use { Keyboard18Dictionary.read(it, selectedScheme) } }
             runOnUiThread {
-                if (isDestroyed || isFinishing) return@runOnUiThread
-                loading = false
+                if (isDestroyed || isFinishing || generation != loadGeneration) return@runOnUiThread
                 loaded.onSuccess { dictionary ->
                     engine = Keyboard18Engine(dictionary).apply { restore(raw) }
                     restoreRaw = ""; previewControls.forEach { it.isEnabled = true }
@@ -212,6 +248,19 @@ class Keyboard18Activity : AppCompatActivity() {
                     showCandidates()
                 }.onFailure { progress.text = "词库读取失败：${it.message}。可重新读取。" }
             }
+        }
+    }
+    private fun saveShuangpin(enabled: Boolean, scheme: ShuangpinScheme) {
+        runCatching { Keyboard18Store.setShuangpin(this, enabled, scheme) }.onSuccess {
+            flush()
+            restoreRaw = ""
+            pendingRestart = true
+            schemeButton.text = "双拼方案：${scheme.title}"
+            updateStatus()
+            prepareDictionary()
+        }.onFailure {
+            Toast.makeText(this, it.message, Toast.LENGTH_LONG).show()
+            recreate()
         }
     }
     private fun updateStatus() {
@@ -234,7 +283,13 @@ class Keyboard18Activity : AppCompatActivity() {
     private fun showResult(result: io.mo.xatype.keyboard18.Pinyin18Result) { result.commit?.let(::insert); showCandidates() }
     private fun showCandidates() {
         val decoder = engine
-        composing.text = decoder?.display?.ifEmpty { if (english) "英文：点按首字母，长按选择另一字母" else "全拼 / 简拼：为什么 → WE · SD · M" }
+        composing.text = decoder?.display?.ifEmpty {
+            when {
+                english -> "英文：点按首字母，长按选择另一字母"
+                decoder.scheme != null -> "${decoder.scheme!!.title}：按双拼编码输入"
+                else -> "全拼 / 简拼：为什么 → WE · SD · M"
+            }
+        }
         candidateRow.removeAllViews()
         decoder?.candidates?.take(40)?.forEachIndexed { index, candidate ->
             candidateRow.addView(button(candidate.text) { decoder.select(index)?.let(::insert); showCandidates() },
@@ -251,9 +306,11 @@ class Keyboard18Activity : AppCompatActivity() {
     private fun popup(group: String) {
         val hint = Keyboard18Keys.hints[Keyboard18Keys.groups.indexOf(group)]
         val values = group.map { if (uppercase) it.uppercaseChar().toString() else it.toString() } +
-            listOf(hint).filter { it.length == 1 }
+            listOf(hint).filter { it.length == 1 } +
+            if (!english && !uppercase && group == "l" && engine?.scheme?.usesSemicolon == true) listOf(";") else emptyList()
         choices("${group.uppercase()}键", values) { selected ->
-            if (!english && !uppercase && selected.length == 1 && selected[0] in 'a'..'z')
+            if (!english && !uppercase && selected.length == 1 && (selected[0] in 'a'..'z' ||
+                    (selected == ";" && engine?.raw?.isNotEmpty() == true && engine?.scheme?.usesSemicolon == true)))
                 engine?.input(selected.single())?.let(::showResult) else literal(selected)
         }
     }

@@ -12,11 +12,12 @@ class Keyboard18Engine(private val dictionary: Keyboard18Dictionary,
     var candidates: List<Pinyin18Candidate> = emptyList()
         private set
     val display: String get() = Keyboard18Keys.readable(raw)
+    val scheme get() = dictionary.scheme
     fun snapshot(consumed: Boolean = true, commit: String? = null) =
         Pinyin18Result(consumed, raw, display, candidates, commit)
     fun clear() { raw = ""; candidates = emptyList() }
     fun restore(value: String): Pinyin18Result {
-        if (value.length > MAX_INPUT || value.any { !Keyboard18Keys.valid(it) }) return snapshot(false)
+        if (value.length > MAX_INPUT || value.any { !dictionary.valid(it) }) return snapshot(false)
         raw = value; refresh(); return snapshot()
     }
     fun backspace(): Pinyin18Result {
@@ -48,7 +49,7 @@ class Keyboard18Engine(private val dictionary: Keyboard18Dictionary,
         if (token == '\b') return backspace()
         if (token == ' ') return snapshot(raw.isNotEmpty(), commitFirst())
         if (token == '\n') return snapshot(raw.isNotEmpty(), commitAll())
-        if (Keyboard18Keys.valid(token)) {
+        if (dictionary.valid(token)) {
             if (token == '\'' && (raw.isEmpty() || raw.last() == '\'')) return snapshot()
             var commit: String? = null
             if (raw.length == MAX_INPUT) commit = commitAll()

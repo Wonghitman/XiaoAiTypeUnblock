@@ -42,10 +42,12 @@ internal object FeatureCatalog {
     val keyboardHeight = Feature(ConfigManager.KEY_KEYBOARD_HEIGHT_UNBLOCK, "解除键盘高度上限",
         "可继续向上拉伸")
 
+    val t9Shuangpin = Feature(ConfigManager.KEY_T9_SHUANGPIN, "九键双拼", "在拼音九键中使用双拼")
+
     val bottomSpacing = Feature(ConfigManager.KEY_BOTTOM_SPACING_ENABLED, "自定义键盘底部间距",
         "调节按键下方的留白")
 
-    val keyboardFeatures get() = listOf(keyboardShortcuts, keyboardHeight, bottomSpacing)
+    val keyboardFeatures get() = listOf(keyboardShortcuts, keyboardHeight, bottomSpacing, t9Shuangpin)
 
     /** Rows of action, nine-key, 26-key and 18-key triggers. */
     private val shortcutKeys = listOf(

@@ -37,7 +37,7 @@ class Keyboard18HostLayout(loader: ClassLoader, private val abi: KeyboardAbi = K
         if (label != Keyboard18Style.label(group) && label != Keyboard18Style.label(group, true)) return null
         return group.takeIf { fields.getValue("g").get(instance) == Keyboard18Keys.hints[Keyboard18Keys.groups.indexOf(group)] }
     }
-    fun rebuild(original: Any, english: Boolean): Any {
+    fun rebuild(original: Any, english: Boolean, semicolon: Boolean = false): Any {
         if (value(original, "a") != "qwerty") return original
         @Suppress("UNCHECKED_CAST")
         val rows = value(original, "c") as List<Any>
@@ -72,7 +72,8 @@ class Keyboard18HostLayout(loader: ClassLoader, private val abi: KeyboardAbi = K
             val keys = groups.map { group ->
                 val hint = Keyboard18Keys.hints[Keyboard18Keys.groups.indexOf(group)]
                 val popup = group.map { if (uppercase) it.uppercaseChar().toString() else it.toString() } +
-                    listOf(hint).filter { it.length == 1 }
+                    listOf(hint).filter { it.length == 1 } +
+                    if (!english && !uppercase && semicolon && group == "l") listOf(";") else emptyList()
                 newKey(if (english) (if (uppercase) group.first().uppercaseChar() else group.first()).code else Keyboard18Keys.code(group),
                     Keyboard18Style.label(group, uppercase), Keyboard18Style.weight(group), hint, popup)
             }.toMutableList()

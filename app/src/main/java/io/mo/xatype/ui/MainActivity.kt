@@ -27,6 +27,7 @@ import io.mo.xatype.BuildConfig
 import io.mo.xatype.R
 import io.mo.xatype.compat.AdaptationStatus
 import io.mo.xatype.config.ConfigManager
+import io.mo.xatype.keyboard.T9ShuangpinScheme
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -451,6 +452,8 @@ class MainActivity : AppCompatActivity() {
         ))
 
         kit.group(root, "输入方案", listOf(
+            featureSwitch(FeatureCatalog.t9Shuangpin).view,
+            t9ShuangpinSchemeRow(),
             kit.navRow("形码输入", null, R.drawable.ic_text_fields) {
                 startActivity(Intent(this, ShapeInputActivity::class.java))
             },
@@ -458,6 +461,35 @@ class MainActivity : AppCompatActivity() {
                 startActivity(Intent(this, Keyboard18Activity::class.java))
             }
         ))
+    }
+
+    private fun t9ShuangpinSchemeRow(): View {
+        val schemes = T9ShuangpinScheme.entries
+        fun selected() = T9ShuangpinScheme.resolve(
+            prefs.getString(ConfigManager.KEY_T9_SHUANGPIN_SCHEME, null))
+        lateinit var row: View
+        row = kit.navRow("九键双拼方案", selected().title, R.drawable.ic_text_fields) {
+            androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("九键双拼方案")
+                .setSingleChoiceItems(schemes.map { it.title }.toTypedArray(), schemes.indexOf(selected())) { dialog, index ->
+                    val scheme = schemes[index]
+                    SettingsKit.confirmHaptic(row)
+                    prefs.edit().putString(ConfigManager.KEY_T9_SHUANGPIN_SCHEME, scheme.name).apply()
+                    // Rebuild the row's subtitle without rebuilding the page or losing scroll position.
+                    val parent = row.parent as? ViewGroup
+                    if (parent != null) {
+                        val position = parent.indexOfChild(row)
+                        val params = row.layoutParams
+                        parent.removeView(row)
+                        parent.addView(t9ShuangpinSchemeRow(), position, params)
+                    }
+                    markRestartNeeded()
+                    dialog.dismiss()
+                }
+                .setNegativeButton("取消", null)
+                .show()
+        }
+        return row
     }
 
     /** Keyboard bottom spacing is independent of appearance profiles. */

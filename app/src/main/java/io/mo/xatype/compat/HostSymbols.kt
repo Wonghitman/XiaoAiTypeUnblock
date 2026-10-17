@@ -1,7 +1,10 @@
 package io.mo.xatype.compat
 
 /** Members of the input method (com.xiaomi.type), located by [HostFingerprints]. */
-object HostSymbols : SymbolTable(5, HostFingerprints::resolve) {
+object HostSymbols : SymbolTable(6, HostFingerprints::resolve) {
+    const val T9_SHUANGPIN_INIT = "keyboard.t9ShuangpinInit"
+    const val T9_SHUANGPIN_BOOLEAN = "keyboard.t9ShuangpinBoolean"
+    const val T9_SHUANGPIN_STRING = "keyboard.t9ShuangpinString"
     const val KEYBOARD_ENGINE = "keyboard.engine"
     const val KEYBOARD_LAYOUT = "keyboard.layout"
     const val KEYBOARD_ACTIONS = "keyboard.actions"
@@ -31,7 +34,8 @@ object HostSymbols : SymbolTable(5, HostFingerprints::resolve) {
         HEIGHT_DRAG, HEIGHT_DRAG_KIND, MODERN_KEYBOARD,
         BOTTOM_SPACING, BOTTOM_SPACING_CONSUME, BOTTOM_SPACING_CALLERS,
         KEYBOARD_ENGINE, KEYBOARD_LAYOUT, KEYBOARD_ACTIONS, KEYBOARD_PICKER,
-        KEYBOARD_SETTINGS, KEYBOARD_SWIPE, KEYBOARD_LETTER_APPEARANCE
+        KEYBOARD_SETTINGS, KEYBOARD_SWIPE, KEYBOARD_LETTER_APPEARANCE,
+        T9_SHUANGPIN_INIT, T9_SHUANGPIN_BOOLEAN, T9_SHUANGPIN_STRING
     )
 
     fun modernKeyboard(): ModernKeyboardProfile? = strings(MODERN_KEYBOARD)?.let {

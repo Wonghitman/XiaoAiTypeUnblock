@@ -22,6 +22,7 @@ import io.mo.xatype.hooks.KeyboardStyleHook
 import io.mo.xatype.hooks.ShapeInputHook
 import io.mo.xatype.hooks.SystemUiNavigationGuardHook
 import io.mo.xatype.hooks.TelemetryBlockHook
+import io.mo.xatype.hooks.T9ShuangpinHook
 import io.mo.xatype.hooks.VoiceModerationHook
 import io.mo.xatype.util.XposedUtils
 import java.io.File
@@ -121,6 +122,13 @@ class XiaoAiTypeModule : XposedModule() {
         } catch (t: Throwable) {
             HostSymbols.markUnavailable(HostSymbols.KEYBOARD_SWIPE, t)
             XposedUtils.logError(this, "Letter shortcuts unavailable for this host ABI", t)
+        }
+
+        try {
+            T9ShuangpinHook.install(this, classLoader)
+        } catch (t: Throwable) {
+            HostSymbols.markUnavailable(HostSymbols.T9_SHUANGPIN_INIT, t)
+            XposedUtils.logError(this, "Nine-key ShuangPin unavailable for this host ABI", t)
         }
 
         if (BuildConfig.INPUT_DIAGNOSTICS) {

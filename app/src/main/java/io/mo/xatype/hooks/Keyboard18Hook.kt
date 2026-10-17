@@ -198,7 +198,7 @@ object Keyboard18Hook {
             }.getOrNull()
             val english = chain.getArg(3) == true
             if (config?.dictionary == null || (!english && (!chineseReady || layoutMode != "PINYIN"))) original else runCatching {
-                layouts.rebuild(original, english).also { rebuilt ->
+                layouts.rebuild(original, english, Keyboard18Store.scheme(config.settings)?.usesSemicolon == true).also { rebuilt ->
                     if (!layoutReported) {
                         layoutReported = true
                         report(context, config.settings, if (rebuilt !== original)
@@ -227,7 +227,7 @@ object Keyboard18Hook {
             ?: error("无法读取18键设置")
         if (!settings.getBoolean(Keyboard18Store.SHOW_IN_PICKER)) return Loaded(settings, null).also { loaded = it }
         val dictionary = checkNotNull(context.contentResolver.openInputStream(Keyboard18ContentProvider.DICTIONARY_URI))
-            .use(Keyboard18Dictionary::read)
+            .use { Keyboard18Dictionary.read(it, Keyboard18Store.scheme(settings)) }
         val latest = context.contentResolver.call(Keyboard18ContentProvider.CONTENT_URI, "snapshot", null, null)
         check(latest?.getLong(Keyboard18Store.REVISION) == settings.getLong(Keyboard18Store.REVISION)) { "设置已更新，请重启输入法" }
         return Loaded(settings, dictionary).also { loaded = it }

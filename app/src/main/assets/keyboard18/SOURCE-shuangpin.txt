@@ -1,0 +1,20 @@
+Reference key assignments for the independent Kotlin ShuangPin encoder.
+XIAOHE: https://raw.githubusercontent.com/rime/rime-double-pinyin/01a13287cbd27819be1c34fa1ddc1b3643d5001b/double_pinyin_flypy.schema.yaml
+SHA256: 6b522a7e9cb743474287a14678597460bd124369f32573dd63e8f04e7c41d4b9
+ZIRANMA: https://raw.githubusercontent.com/rime/rime-double-pinyin/01a13287cbd27819be1c34fa1ddc1b3643d5001b/double_pinyin.schema.yaml
+SHA256: 763430a99d0cd693805766b49d60b9092bc2af0ca26eb107f1d044566ce765d3
+WEIRUAN: https://raw.githubusercontent.com/rime/rime-double-pinyin/01a13287cbd27819be1c34fa1ddc1b3643d5001b/double_pinyin_mspy.schema.yaml
+SHA256: c72dc607000b39795ab267f80ec8727c6551015579b735a839f198422a75d7a2
+SOUGOU: https://raw.githubusercontent.com/iDvel/rime-ice/da1fbe602e38f26db846fa10120ee64c2b0324c0/double_pinyin_sogou.schema.yaml
+SHA256: 5fbef7d040cbb6ae5db4b18b94c9968171ac8c646c72aa7b26a7c5d03c32b0d8
+ZHINENG_ABC: https://raw.githubusercontent.com/rime/rime-double-pinyin/01a13287cbd27819be1c34fa1ddc1b3643d5001b/double_pinyin_abc.schema.yaml
+SHA256: bb57bc3f3436aa1e9c98e7ad1a7f2b84810dbedc971f659d9bdfe2b5c81eac4f
+PINYIN_JIAJIA: https://raw.githubusercontent.com/rime/rime-double-pinyin/01a13287cbd27819be1c34fa1ddc1b3643d5001b/double_pinyin_pyjj.schema.yaml
+SHA256: 31903e5cfc2e9c7cd959685cff91ae0f4634238238494dcf6904ad7fba330811
+ZIGUANG: https://raw.githubusercontent.com/iDvel/rime-ice/da1fbe602e38f26db846fa10120ee64c2b0324c0/double_pinyin_ziguang.schema.yaml
+SHA256: 72218f6d1f1c022e017b523ae191677d36e907c6dde1c2fd577baa0bf9d205a5
+Sources: Rime double-pinyin (GPL-3.0), Rime Ice (GPL-3.0).
+Only standard key-assignment facts and derived test vectors are included; no Rime engine is bundled.
+18-key adaptation: the L group additionally accepts the semicolon final in Microsoft, Sogou and Ziguang.
+Canonical zero initials: Xiaohe/Natural use repeated vowels or the original two-letter spelling; other schemes use O.
+Regenerate test vectors with: python scripts/update-shuangpin-reference.py

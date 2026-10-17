@@ -17,6 +17,9 @@ object AdaptationStatus {
 
     /** User-facing feature behind each symbol key. */
     private val FEATURES = mapOf(
+        HostSymbols.T9_SHUANGPIN_INIT to "九键双拼",
+        HostSymbols.T9_SHUANGPIN_BOOLEAN to "九键双拼",
+        HostSymbols.T9_SHUANGPIN_STRING to "九键双拼",
         HostSymbols.KEYBOARD_ENGINE to "虎码/五笔与18键引擎",
         HostSymbols.KEYBOARD_LAYOUT to "18键布局",
         HostSymbols.KEYBOARD_ACTIONS to "快捷操作输入收尾",
