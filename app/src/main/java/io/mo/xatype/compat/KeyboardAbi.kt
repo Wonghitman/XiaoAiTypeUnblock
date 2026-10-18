@@ -83,7 +83,7 @@ class KeyboardAbi private constructor(private val loader: ClassLoader, private v
     companion object {
         val groups = listOf(HostSymbols.KEYBOARD_ENGINE, HostSymbols.KEYBOARD_LAYOUT, HostSymbols.KEYBOARD_ACTIONS,
             HostSymbols.KEYBOARD_PICKER, HostSymbols.KEYBOARD_SETTINGS, HostSymbols.KEYBOARD_SWIPE,
-            HostSymbols.KEYBOARD_LETTER_APPEARANCE)
+            HostSymbols.KEYBOARD_LETTER_APPEARANCE, HostSymbols.KEYBOARD_SURFACE_TEXT)
 
         fun require(loader: ClassLoader, vararg required: String): KeyboardAbi {
             required.forEach { check(HostSymbols.has(it)) { "Keyboard ABI unavailable: $it" } }

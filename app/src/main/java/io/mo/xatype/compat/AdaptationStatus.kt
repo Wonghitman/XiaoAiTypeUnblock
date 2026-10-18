@@ -27,6 +27,7 @@ object AdaptationStatus {
         HostSymbols.KEYBOARD_SETTINGS to "原生键盘设置入口",
         HostSymbols.KEYBOARD_SWIPE to "字母下滑快捷操作",
         HostSymbols.KEYBOARD_LETTER_APPEARANCE to "18键字母排版",
+        HostSymbols.KEYBOARD_SURFACE_TEXT to "候选栏与剪贴板条字色",
         HostSymbols.AI_SAFETY_PARSERS to "AI 表达安全拦截解除",
         HostSymbols.VOICE_MODERATION to "语音转写风控解除",
         HostSymbols.ASR_ERROR_MAPPER to "语音转写风控解除",

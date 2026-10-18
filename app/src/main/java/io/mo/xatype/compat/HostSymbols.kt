@@ -1,7 +1,7 @@
 package io.mo.xatype.compat
 
 /** Members of the input method (com.xiaomi.type), located by [HostFingerprints]. */
-object HostSymbols : SymbolTable(6, HostFingerprints::resolve) {
+object HostSymbols : SymbolTable(7, HostFingerprints::resolve) {
     const val T9_SHUANGPIN_INIT = "keyboard.t9ShuangpinInit"
     const val T9_SHUANGPIN_BOOLEAN = "keyboard.t9ShuangpinBoolean"
     const val T9_SHUANGPIN_STRING = "keyboard.t9ShuangpinString"
@@ -12,6 +12,7 @@ object HostSymbols : SymbolTable(6, HostFingerprints::resolve) {
     const val KEYBOARD_SETTINGS = "keyboard.settings"
     const val KEYBOARD_SWIPE = "keyboard.swipe"
     const val KEYBOARD_LETTER_APPEARANCE = "keyboard.letterAppearance"
+    const val KEYBOARD_SURFACE_TEXT = "keyboard.surfaceText"
     const val AI_SAFETY_PARSERS = "aiSafety.parsers"
     const val VOICE_MODERATION = "voice.moderation"
     const val ASR_ERROR_MAPPER = "asr.errorMapper"
@@ -34,7 +35,7 @@ object HostSymbols : SymbolTable(6, HostFingerprints::resolve) {
         HEIGHT_DRAG, HEIGHT_DRAG_KIND, MODERN_KEYBOARD,
         BOTTOM_SPACING, BOTTOM_SPACING_CONSUME, BOTTOM_SPACING_CALLERS,
         KEYBOARD_ENGINE, KEYBOARD_LAYOUT, KEYBOARD_ACTIONS, KEYBOARD_PICKER,
-        KEYBOARD_SETTINGS, KEYBOARD_SWIPE, KEYBOARD_LETTER_APPEARANCE,
+        KEYBOARD_SETTINGS, KEYBOARD_SWIPE, KEYBOARD_LETTER_APPEARANCE, KEYBOARD_SURFACE_TEXT,
         T9_SHUANGPIN_INIT, T9_SHUANGPIN_BOOLEAN, T9_SHUANGPIN_STRING
     )
 

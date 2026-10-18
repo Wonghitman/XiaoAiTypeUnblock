@@ -21,7 +21,10 @@ import android.view.inputmethod.EditorInfo
 import android.widget.ImageView
 import android.widget.PopupWindow
 import android.widget.TextView
+import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
+import io.mo.xatype.compat.HostSymbols
+import io.mo.xatype.compat.KeyboardAbi
 import io.mo.xatype.compat.ModernKeyboardProfile
 import io.mo.xatype.compat.TargetCompatibility
 import io.mo.xatype.compat.TargetGeneration
@@ -55,6 +58,13 @@ object KeyboardStyleV209Hook
     @Volatile
     private var activePalette: Any? = null
 
+    /** keyTextColor and its replacement on the keyboard background, both as Compose colors. */
+    private class SurfaceText(val keyText: Long, val surfaceText: Long)
+
+    // Guarded by originalPaletteColors, like the palette patches they describe.
+    private val surfaceTexts = IdentityHashMap<Any, SurfaceText>()
+    private val surfaceTextScope = ThreadLocal<List<SurfaceText>?>()
+
     @Volatile
     private var cachedBitmap: Bitmap? = null
 
@@ -81,6 +91,15 @@ object KeyboardStyleV209Hook
         installWindowTransitionHooks(module)
         installHyperMaterialHooks(module, classLoader)
         installPaletteHook(module, classLoader)
+        try
+        {
+            installSurfaceTextHooks(module, classLoader)
+        }
+        catch (t: Throwable)
+        {
+            HostSymbols.markUnavailable(HostSymbols.KEYBOARD_SURFACE_TEXT, t)
+            XposedUtils.logError(module, "KeyboardStyleV209Hook: candidate text colors unavailable for this host ABI", t)
+        }
         PanelExpansionAnimationHook.install(module, classLoader)
         installClipboardPopupHook(module)
 
@@ -387,6 +406,7 @@ object KeyboardStyleV209Hook
                 {
                     rememberPalette(palette)
                     restorePalette(palette)
+                    surfaceTexts.remove(palette)
 
                     if (ConfigManager.isStyleEnabled())
                     {
@@ -401,6 +421,71 @@ object KeyboardStyleV209Hook
         }
 
         XposedUtils.log(module, "KeyboardStyleV209Hook: Hooked ${profile.paletteFactoryClassName}.${profile.paletteFactoryMethod} Compose palette")
+    }
+
+    /**
+     * The palette has a single keyTextColor for keycap labels and for the text in
+     * the candidate bar: candidates, the composing pinyin, the quick-insert
+     * (clipboard) strip and its chips. Inside those composables, swap that color
+     * for the background's text color as it reaches the Text composables.
+     */
+    private fun installSurfaceTextHooks(module: XposedModule, classLoader: ClassLoader)
+    {
+        val abi = KeyboardAbi.require(classLoader, HostSymbols.KEYBOARD_SURFACE_TEXT)
+        val candidateBar = abi.type("z9.u7")
+        // The expanded candidate page and its pinyin column draw on keycap-colored
+        // cards, so they keep keyTextColor.
+        val scopes = listOf(
+            abi.namedMethods(candidateBar, "n").single { abi.type("ma.k") in it.parameterTypes },
+            abi.namedMethods(candidateBar, "S").single(),
+            abi.namedMethods(candidateBar, "i0").single(),
+            abi.namedMethods(candidateBar, "t0").single(),
+            abi.namedMethods(abi.type("z9.q1"), "b").single { it.parameterTypes[0] == String::class.java },
+            abi.namedMethods(abi.type("qh.c"), "h").single()
+        )
+        val textType = abi.type("p0.n")
+        val long = Long::class.javaPrimitiveType
+        // Text(String) and Text(AnnotatedString): color is parameter 2 in both.
+        val texts = listOf(
+            abi.namedMethods(textType, "a").single {
+                it.parameterCount == 19 && it.parameterTypes[0] == String::class.java && it.parameterTypes[2] == long
+            } to 16,
+            abi.namedMethods(textType, "b").single {
+                it.parameterCount == 14 && it.parameterTypes[2] == long
+            } to 13
+        )
+
+        scopes.forEach { method ->
+            module.hook(method).intercept { chain ->
+                val colors = synchronized(originalPaletteColors) { surfaceTexts.values.toList() }
+                if (colors.isEmpty()) return@intercept chain.proceed()
+                val previous = surfaceTextScope.get()
+                surfaceTextScope.set(colors)
+                try
+                {
+                    chain.proceed()
+                }
+                finally
+                {
+                    if (previous == null) surfaceTextScope.remove() else surfaceTextScope.set(previous)
+                }
+            }
+            module.deoptimize(method)
+        }
+        texts.forEach { (method, changedIndex) ->
+            module.hook(method).intercept { chain ->
+                val colors = surfaceTextScope.get() ?: return@intercept chain.proceed()
+                val color = chain.getArg(2) as Long
+                val replacement = colors.firstOrNull { it.keyText == color } ?: return@intercept chain.proceed()
+                val args = chain.args.toTypedArray()
+                args[2] = replacement.surfaceText
+                args[changedIndex] = (args[changedIndex] as Int) and 0x380.inv() // Re-compare the color.
+                chain.proceed(args)
+            }
+            module.deoptimize(method)
+        }
+
+        XposedUtils.log(module, "KeyboardStyleV209Hook: Hooked candidate bar text colors")
     }
 
     private fun rememberPalette(palette: Any)
@@ -536,8 +621,7 @@ object KeyboardStyleV209Hook
                 )
             }
 
-            fun primaryOn(dark: Boolean) =
-                customText ?: if (dark) Color.argb(242, 255, 255, 255) else Color.argb(230, 0, 0, 0)
+            fun primaryOn(dark: Boolean) = KeyboardContrast.textOn(dark, customText)
 
             val secondary =
                 customText?.let {
@@ -554,7 +638,8 @@ object KeyboardStyleV209Hook
                     Color.argb(178, 0, 0, 0)
                 }
 
-            writeLongField(palette, profile.palette("keyTextColor"), composeColor(primaryOn(keySurfaceDark)))
+            val keyText = primaryOn(keySurfaceDark)
+            writeLongField(palette, profile.palette("keyTextColor"), composeColor(keyText))
 
             // Enter keeps its native label unless its keycap or the text color is custom.
             if (customText != null || functionColor != null)
@@ -563,7 +648,20 @@ object KeyboardStyleV209Hook
                 writeLongField(palette, profile.palette("keyTextColorEnter"), composeColor(primaryOn(enterDark)))
             }
 
-            val surfaceText = composeColor(primaryOn(isDarkColor(backdrop)))
+            val surfaceTextColor = primaryOn(isDarkColor(backdrop))
+            val surfaceText = composeColor(surfaceTextColor)
+
+            // Candidate bar text draws keyTextColor on the background; installSurfaceTextHooks()
+            // swaps it there. The candidate chips follow the background too.
+            if (surfaceTextColor != keyText)
+            {
+                surfaceTexts[palette] = SurfaceText(composeColor(keyText), surfaceText)
+            }
+            listOf("candidateSelectedBackground", "candidatePressedBackground").forEach { label ->
+                argbColor(readLongField(palette, profile.palette(label)))
+                    ?.let { KeyboardContrast.chipOn(it, backdrop) }
+                    ?.let { writeLongField(palette, profile.palette(label), composeColor(it)) }
+            }
             listOf(
                 "modeSelectorTitleColor",
                 "navBackIconColor",
@@ -2184,14 +2282,7 @@ object KeyboardStyleV209Hook
         )
     }
 
-    private fun isDarkColor(color: Int): Boolean
-    {
-        return (
-            299 * Color.red(color) +
-                587 * Color.green(color) +
-                114 * Color.blue(color)
-            ) / 1000 < 150
-    }
+    private fun isDarkColor(color: Int): Boolean = KeyboardContrast.isDark(color)
 
     private fun withAlpha(color: Int, alpha: Int): Int
     {
@@ -2212,15 +2303,5 @@ object KeyboardStyleV209Hook
     private fun argbColor(value: Long?): Int? =
         value?.takeIf { it and 0x3fL == 0L }?.let { (it ushr 32).toInt() }
 
-    /** [color] alpha-composited over [base], ignoring the base's own alpha. */
-    private fun opaqueOver(color: Int, base: Int): Int
-    {
-        val a = Color.alpha(color) / 255f
-        fun mix(top: Int, bottom: Int) = (top * a + bottom * (1 - a) + 0.5f).toInt()
-        return Color.rgb(
-            mix(Color.red(color), Color.red(base)),
-            mix(Color.green(color), Color.green(base)),
-            mix(Color.blue(color), Color.blue(base))
-        )
-    }
+    private fun opaqueOver(color: Int, base: Int): Int = KeyboardContrast.opaqueOver(color, base)
 }

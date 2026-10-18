@@ -17,6 +17,7 @@ import android.os.Build
 import android.util.AttributeSet
 import android.view.View
 import io.mo.xatype.hooks.BackgroundOpacity
+import io.mo.xatype.hooks.KeyboardContrast
 import io.mo.xatype.hooks.ReadabilityScrim
 
 /**
@@ -86,7 +87,7 @@ class KeyboardPreviewView @JvmOverloads constructor(
     }
 
     /** Grayed labels stay a darker gray than grayed keycaps so the layout reads. */
-    private fun labelShade(region: Focus) = if (lit(region)) labelColor() else 0xff8e8e93.toInt()
+    private fun labelShade(region: Focus, color: Int = labelColor()) = if (lit(region)) color else 0xff8e8e93.toInt()
 
     // Native colors approximated from the stock light and dark themes.
     private val nativeSurface get() = if (style.dark) 0xff1c1c1e.toInt() else 0xfff2f3f5.toInt()
@@ -109,10 +110,22 @@ class KeyboardPreviewView @JvmOverloads constructor(
         return BackgroundOpacity.argb(rgb or (0xff shl 24), style.scrimOpacity)
     }
 
+    private val surfaceDark get() = if (custom && style.bgType == 1) luma(style.bgColor) < 150 else style.dark
+
+    /** Text on the keyboard background: candidates, toolbar and panel titles. */
     private fun labelColor(): Int {
         if (custom) style.textColor?.let { return it or (0xff shl 24) }
-        val surfaceDark = if (custom && style.bgType == 1) luma(style.bgColor) < 150 else style.dark
         return if (surfaceDark) Color.WHITE else 0xe6000000.toInt()
+    }
+
+    /** Keycap labels follow the letter keycap as composited on the background, like the palette hook. */
+    private fun keyLabelColor(): Int {
+        if (!custom || style.textColor != null) return labelColor()
+        if (style.bgType != 1 && style.letterKey == null && style.functionKey == null) return labelColor()
+        val backdrop = if (style.bgType == 1) style.bgColor or (0xff shl 24)
+        else if (surfaceDark) Color.BLACK else Color.WHITE
+        val letter = KeyboardContrast.opaqueOver(keycap(style.letterKey, style.letterOpacity, nativeLetter), backdrop)
+        return if (KeyboardContrast.isDark(letter)) Color.WHITE else 0xe6000000.toInt()
     }
 
     private fun keycap(color: Int?, opacity: Int, fallback: Int): Int =
@@ -202,8 +215,11 @@ class KeyboardPreviewView @JvmOverloads constructor(
         }
     }
 
-    private fun drawLabel(canvas: Canvas, label: String, cx: Float, cy: Float, size: Float, bold: Boolean = false) {
-        text.color = labelShade(Focus.TEXT)
+    private fun drawLabel(
+        canvas: Canvas, label: String, cx: Float, cy: Float, size: Float,
+        bold: Boolean = false, color: Int = labelShade(Focus.TEXT)
+    ) {
+        text.color = color
         text.textSize = size
         text.typeface = if (bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
         canvas.drawText(label, cx, cy - (text.descent() + text.ascent()) / 2, text)
@@ -252,6 +268,7 @@ class KeyboardPreviewView @JvmOverloads constructor(
         val letter = keycap(style.letterKey, style.letterOpacity, nativeLetter)
         val function = keycap(style.functionKey, style.functionOpacity, nativeFunction)
         val labelSize = (rowH * 0.42f).coerceAtMost(dp(17f))
+        val keyLabel = labelShade(Focus.TEXT, keyLabelColor())
 
         fun row(index: Int) = rowsTop + rowH * index + gap / 2 to rowsTop + rowH * (index + 1) - gap / 2
 
@@ -260,14 +277,14 @@ class KeyboardPreviewView @JvmOverloads constructor(
             keys.forEachIndexed { i, c ->
                 val l = startX + i * (keyW + gap)
                 drawKey(canvas, l, t, l + keyW, b, letter, Focus.LETTER_KEY)
-                drawLabel(canvas, c.toString(), l + keyW / 2, (t + b) / 2, labelSize)
+                drawLabel(canvas, c.toString(), l + keyW / 2, (t + b) / 2, labelSize, color = keyLabel)
             }
         }
 
         fun functionKey(label: String, index: Int, l: Float, r: Float) {
             val (t, b) = row(index)
             drawKey(canvas, l, t, r, b, function, Focus.FUNCTION_KEY)
-            drawLabel(canvas, label, (l + r) / 2, (t + b) / 2, labelSize * 0.78f)
+            drawLabel(canvas, label, (l + r) / 2, (t + b) / 2, labelSize * 0.78f, color = keyLabel)
         }
 
         letters("QWERTYUIOP", 0, pad)
@@ -282,7 +299,7 @@ class KeyboardPreviewView @JvmOverloads constructor(
         listOf("符", "123", "，").forEach { label ->
             if (label == "，") {
                 drawKey(canvas, x, t, x + keyW, b, letter, Focus.LETTER_KEY)
-                drawLabel(canvas, label, x + keyW / 2, (t + b) / 2, labelSize)
+                drawLabel(canvas, label, x + keyW / 2, (t + b) / 2, labelSize, color = keyLabel)
             } else {
                 functionKey(label, 3, x, x + keyW * 1.2f)
                 x += keyW * 0.2f
@@ -292,10 +309,10 @@ class KeyboardPreviewView @JvmOverloads constructor(
         val enterW = keyW * 1.9f
         val spaceR = w - pad - enterW - gap * 3 - keyW * 2.2f
         drawKey(canvas, x, t, spaceR, b, letter, Focus.LETTER_KEY)
-        drawLabel(canvas, "空格", (x + spaceR) / 2, (t + b) / 2, labelSize * 0.78f)
+        drawLabel(canvas, "空格", (x + spaceR) / 2, (t + b) / 2, labelSize * 0.78f, color = keyLabel)
         x = spaceR + gap
         drawKey(canvas, x, t, x + keyW, b, letter, Focus.LETTER_KEY)
-        drawLabel(canvas, "。", x + keyW / 2, (t + b) / 2, labelSize)
+        drawLabel(canvas, "。", x + keyW / 2, (t + b) / 2, labelSize, color = keyLabel)
         x += keyW + gap
         functionKey("中/英", 3, x, x + keyW * 1.2f)
         x += keyW * 1.2f + gap

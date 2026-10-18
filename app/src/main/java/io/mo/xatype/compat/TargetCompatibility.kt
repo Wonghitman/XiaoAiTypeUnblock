@@ -95,7 +95,8 @@ data class ModernKeyboardProfile(
             "modeSelectorTitleColor", "navBackIconColor", "toolbarIconColor",
             "toolbarIconColorCollapse", "symbolLockIndicatorInactive", "bottomBarIconColor",
             "candidateExpandIconColor", "modeSelectorUnselectedIconColor",
-            "modeSelectorUnselectedTextColor", "appsPanel", "isDark"
+            "modeSelectorUnselectedTextColor", "appsPanel", "isDark",
+            "candidateSelectedBackground", "candidatePressedBackground"
         )
         val APPS_PANEL_LABELS = listOf(
             "background", "cardBackground", "cardIconColor", "cardTextColor",
@@ -105,7 +106,8 @@ data class ModernKeyboardProfile(
         private val VERIFIED_PALETTE_FIELDS = PALETTE_LABELS.zip(
             listOf(
                 "a", "b", "u", "c", "d", "e", "f", "g", "h", "i", "j", "k",
-                "l", "m", "w", "x", "y", "A", "I", "L", "M", "U", "Y"
+                "l", "m", "w", "x", "y", "A", "I", "L", "M", "U", "Y",
+                "G", "H"
             )
         ).toMap()
         private val VERIFIED_APPS_PANEL_FIELDS = APPS_PANEL_LABELS.zip(

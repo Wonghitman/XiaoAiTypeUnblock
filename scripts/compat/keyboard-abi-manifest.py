@@ -30,6 +30,8 @@ group("keyboard.swipe", "ka.c e1.o bd.b nc.m s0.v0 s0.h2 s0.o0 s0.d s0.c2 androi
       {"ka.c": "a", "nc.m": "a", "s0.o0": "f", "d2.u0": "f", "l1.b": "a"})
 group("keyboard.letterAppearance", "ka.c s0.p e1.o e1.g z9.w5 ma.v androidx.compose.foundation.layout.a e1.b",
       {"z9.w5": "a", "ma.v": "Q h0", "androidx.compose.foundation.layout.a": "a"}, {"e1.b": "b c"})
+group("keyboard.surfaceText", "z9.u7 z9.q1 qh.c p0.n ma.k",
+      {"z9.u7": "n S i0 t0", "z9.q1": "b", "qh.c": "h", "p0.n": "a b"})
 
 if __name__ == "__main__":
     with open(sys.argv[1], "w", encoding="utf-8") as output:
