@@ -49,6 +49,8 @@ object KeyboardStyleV209Hook
     private val activeClipboardPopups = WeakHashMap<PopupWindow, ClipboardPopupState>()
     private val popupMaterialListeners = WeakHashMap<View, View.OnAttachStateChangeListener>()
     private val pendingMaterialSize = WeakHashMap<View, ViewTreeObserver.OnPreDrawListener>()
+    // Materials painted with a custom color or image background.
+    private val customBackgroundMaterials = WeakHashMap<View, Boolean>()
 
     @Volatile
     private var activePalette: Any? = null
@@ -226,6 +228,23 @@ object KeyboardStyleV209Hook
                     }
                 }
                 result
+            }
+        }
+
+        // Without advanced visual release 6, b(View) posts setBackgroundColor(0)
+        // 20ms later, wiping a custom color or image applied to the material.
+        XposedUtils.findMethodExact(
+            View::class.java,
+            "setBackgroundColor",
+            Int::class.javaPrimitiveType ?: Integer.TYPE
+        )?.let { method ->
+            module.hook(method).intercept { chain ->
+                val view = chain.thisObject as? View
+                if (chain.getArg(0) == Color.TRANSPARENT && view != null && ownsCustomBackground(view)) {
+                    null
+                } else {
+                    chain.proceed()
+                }
             }
         }
 
@@ -1740,6 +1759,10 @@ object KeyboardStyleV209Hook
         }
     }
 
+    private fun ownsCustomBackground(view: View): Boolean =
+        ConfigManager.isStyleEnabled() && ConfigManager.getBgType() != 0 &&
+            synchronized(customBackgroundMaterials) { customBackgroundMaterials.containsKey(view) }
+
     private fun hasUndockedKeyboard(service: android.inputmethodservice.InputMethodService): Boolean {
         val material = XposedUtils.getObjectField(service, "hyperMaterialHelper")?.let {
             XposedUtils.getObjectField(it, profile.helperMaterialField) as? View
@@ -1767,6 +1790,10 @@ object KeyboardStyleV209Hook
         {
             if (isPopupMaterial(service, material)) watchPopupMaterial(module, service, helper, material)
             applyWindowStyle(service)
+            synchronized(customBackgroundMaterials) {
+                if (ConfigManager.getBgType() == 0) customBackgroundMaterials.remove(material)
+                else customBackgroundMaterials[material] = true
+            }
             when (ConfigManager.getBgType())
             {
                 0 ->
