@@ -19,6 +19,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewOutlineProvider
 import android.view.inputmethod.InputMethodManager
+import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
@@ -29,12 +30,14 @@ import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatEditText
 import androidx.appcompat.widget.SwitchCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import io.mo.xatype.R
+import io.mo.xatype.config.AppearancePresetStore
 import io.mo.xatype.config.AppearanceProfiles
 import io.mo.xatype.config.ConfigManager
 import io.mo.xatype.hooks.BackgroundOpacity
@@ -86,8 +89,9 @@ class AppearancePage(
     private var panelChanged = false
 
     // Profile writes go to the same file, so one listener covers both profiles.
-    private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
-        if (overlay.visibility == View.VISIBLE) panelChanged = true
+    private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        // A scheme name or snapshot is metadata, not a live keyboard change.
+        if (overlay.visibility == View.VISIBLE && key != AppearancePresetStore.STORAGE_KEY) panelChanged = true
         refresh()
     }
 
@@ -192,7 +196,13 @@ class AppearancePage(
             Option("深浅色配置", "", Focus.NONE,
                 { Summary((if (editingDark) "深色" else "浅色") +
                     if (prefs.getBoolean(AppearanceProfiles.FOLLOW_SYSTEM, false)) " · 跟随系统" else "") },
-                ::buildProfilePanel)
+                ::buildProfilePanel),
+            Option("一键外观预设", "快速尝试不同风格", Focus.NONE,
+                { Summary("内置 " + AppearancePresetStore.presets.size + " 套") },
+                ::buildPresetPanel),
+            Option("我的外观配置", "命名保存、切换与管理多套外观", Focus.NONE,
+                { Summary(AppearancePresetStore.saved(prefs).size.toString() + " 套") },
+                ::buildSchemePanel)
         ))
 
         section(root, "形状与背景", listOf(
@@ -331,6 +341,170 @@ class AppearancePage(
         panel.removeView(hint)
         panel.addView(hint)
         updateHint(follow)
+    }
+
+
+    // --------------------------------------------- preset and scheme library
+
+    private fun buildPresetPanel(panel: LinearLayout)
+    {
+        note(panel, "预设只会修改当前编辑的" + (if (editingDark) "深色" else "浅色") +
+            "外观，不影响其他净化和键盘功能。选择前会要求确认。")
+        AppearancePresetStore.presets.forEach { preset ->
+            panel.addView(kit.navRow(preset.name, preset.description, null) {
+                AlertDialog.Builder(activity)
+                    .setTitle("应用「" + preset.name + "」")
+                    .setMessage("将替换当前" + (if (editingDark) "深色" else "浅色") +
+                        "外观的全部颜色、透明度和圆角设置。建议先保存当前外观配置。")
+                    .setNegativeButton("取消", null)
+                    .setPositiveButton("应用") { _, _ ->
+                        if (AppearancePresetStore.applyPreset(prefs, editingDark, preset.id))
+                        {
+                            panelChanged = true
+                            refresh()
+                            Toast.makeText(this, "已应用预设，重启输入法后生效", Toast.LENGTH_SHORT).show()
+                        }
+                        else
+                        {
+                            Toast.makeText(this, "应用预设失败", Toast.LENGTH_SHORT).show()
+                        }
+                    }.show()
+            })
+        }
+    }
+
+    private fun buildSchemePanel(panel: LinearLayout)
+    {
+        showSchemes(panel)
+    }
+
+    private fun showSchemes(panel: LinearLayout)
+    {
+        panel.removeAllViews()
+        note(panel, "保存完整的浅色、深色配置及其切换方式。可保存任意多套配置，切换时不会更改净化和键盘增强设置。")
+        panel.addView(kit.navRow("保存当前为新配置", "给当前外观起一个名称并存档", null) {
+            askSchemeName(panel, "保存新配置", "") { name ->
+                AppearancePresetStore.save(prefs, name)
+            }
+        })
+
+        val schemes = AppearancePresetStore.saved(prefs)
+        if (schemes.isEmpty())
+        {
+            note(panel, "还没有保存的配置，先调整外观，再点击上方保存。")
+            return
+        }
+        note(panel, "已保存 " + schemes.size + " 套 · 点击名称加载配置")
+        schemes.forEach { scheme ->
+            panel.addView(kit.navRow(scheme.name, "包含浅色与深色外观 · 点击切换", null) {
+                AlertDialog.Builder(activity)
+                    .setTitle("加载「" + scheme.name + "」")
+                    .setMessage("这将覆盖当前未保存的浅色、深色外观及跟随系统设置，是否继续？")
+                    .setNegativeButton("取消", null)
+                    .setPositiveButton("加载") { _, _ ->
+                        if (AppearancePresetStore.applySaved(prefs, scheme.id))
+                        {
+                            val systemDark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+                                Configuration.UI_MODE_NIGHT_YES
+                            editingDark = AppearanceProfiles.usesDark(
+                                prefs.getBoolean(AppearanceProfiles.FOLLOW_SYSTEM, false),
+                                prefs.getBoolean(AppearanceProfiles.MANUAL_DARK, false),
+                                systemDark)
+                            panelChanged = true
+                            refresh()
+                            Toast.makeText(this, "配置已加载，重启输入法后生效", Toast.LENGTH_SHORT).show()
+                        }
+                        else
+                        {
+                            Toast.makeText(this, "读取配置失败", Toast.LENGTH_SHORT).show()
+                        }
+                    }.show()
+            })
+            val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            actions.addView(schemeAction("覆盖保存") {
+                AlertDialog.Builder(activity)
+                    .setTitle("覆盖「" + scheme.name + "」")
+                    .setMessage("将用当前浅色、深色外观替换这套已保存的配置。此操作不可撤销。")
+                    .setNegativeButton("取消", null)
+                    .setPositiveButton("覆盖") { _, _ ->
+                        if (AppearancePresetStore.overwrite(prefs, scheme.id))
+                        {
+                            showSchemes(panel)
+                            Toast.makeText(this, "已更新保存的配置", Toast.LENGTH_SHORT).show()
+                        }
+                        else Toast.makeText(this, "覆盖保存失败", Toast.LENGTH_SHORT).show()
+                    }.show()
+            }, LinearLayout.LayoutParams(0, dp(48), 1f))
+            actions.addView(schemeAction("重命名") {
+                askSchemeName(panel, "重命名配置", scheme.name) { name ->
+                    AppearancePresetStore.rename(prefs, scheme.id, name)
+                }
+            }, LinearLayout.LayoutParams(0, dp(48), 1f))
+            actions.addView(schemeAction("删除") {
+                AlertDialog.Builder(activity)
+                    .setTitle("删除「" + scheme.name + "」")
+                    .setMessage("只删除这一套存档，不会改变当前键盘外观。删除后不能恢复。")
+                    .setNegativeButton("取消", null)
+                    .setPositiveButton("删除") { _, _ ->
+                        if (AppearancePresetStore.delete(prefs, scheme.id))
+                        {
+                            showSchemes(panel)
+                            Toast.makeText(this, "配置已删除", Toast.LENGTH_SHORT).show()
+                        }
+                        else Toast.makeText(this, "删除配置失败", Toast.LENGTH_SHORT).show()
+                    }.show()
+            }, LinearLayout.LayoutParams(0, dp(48), 1f))
+            panel.addView(actions)
+        }
+    }
+
+    private fun schemeAction(label: String, onClick: () -> Unit) = Button(this).apply {
+        text = label
+        textSize = 12f
+        isAllCaps = false
+        minWidth = 0
+        minimumHeight = dp(44)
+        setOnClickListener { onClick() }
+    }
+
+    private fun askSchemeName(panel: LinearLayout, title: String, initial: String,
+                              onSave: (String) -> Boolean)
+    {
+        val input = AppCompatEditText(activity).apply {
+            setSingleLine(true)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+            filters = arrayOf(InputFilter.LengthFilter(30))
+            hint = "例如：日常通透、深夜护眼"
+            setText(initial)
+            setSelection(text?.length ?: 0)
+        }
+        val container = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(24), dp(8), dp(24), 0)
+            addView(input, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        }
+        val dialog = AlertDialog.Builder(activity)
+            .setTitle(title)
+            .setView(container)
+            .setNegativeButton("取消", null)
+            .setPositiveButton("保存", null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).setOnClickListener {
+                if (onSave(input.text?.toString() ?: ""))
+                {
+                    dialog.dismiss()
+                    showSchemes(panel)
+                    Toast.makeText(this, "配置保存成功", Toast.LENGTH_SHORT).show()
+                }
+                else
+                {
+                    input.error = "名称不能为空、不能与其他配置重名，或保存失败"
+                }
+            }
+        }
+        dialog.show()
     }
 
     private fun buildBackgroundPanel(panel: LinearLayout) {

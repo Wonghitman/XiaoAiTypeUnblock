@@ -29,6 +29,11 @@ object AppearanceProfiles {
         ConfigManager.KEY_BG_IMAGE_VERSION to 0L
     )
 
+    /** Appearance values that can be carried between named schemes. Image version stays device-local. */
+    val portableKeys: Set<String> = defaults.keys - ConfigManager.KEY_BG_IMAGE_VERSION
+
+    fun defaultValue(key: String): Any = defaults.getValue(key)
+
     fun usesDark(followSystem: Boolean, manualDark: Boolean, systemDark: Boolean): Boolean =
         if (followSystem) systemDark else manualDark
 
