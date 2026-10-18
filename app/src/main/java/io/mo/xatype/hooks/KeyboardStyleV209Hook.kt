@@ -437,6 +437,9 @@ object KeyboardStyleV209Hook
     {
         val backgroundType = ConfigManager.getBgType()
         val transparent = composeColor(Color.TRANSPARENT)
+        // Read before anything below overwrites them; restorePalette() just reset these.
+        val nativeLetter = argbColor(readLongField(palette, profile.palette("keyBackgroundDefault")))
+        val nativeSpecial = argbColor(readLongField(palette, profile.palette("keyBackgroundSpecial")))
 
         // The v209 palette exposes separate keyboard, top and toolbar surfaces.
         // Custom backgrounds are drawn by the retained HyperMaterial view, so
@@ -504,10 +507,6 @@ object KeyboardStyleV209Hook
         }
 
         val customText = parseOptionalColor(ConfigManager.getTextColor())
-        val keySurfaceDark =
-            (letterColor ?: functionColor)
-                ?.let(::isDarkColor)
-                ?: surfaceDark
 
         val shouldAdaptKeyText =
             backgroundType == 1 ||
@@ -517,16 +516,28 @@ object KeyboardStyleV209Hook
 
         if (shouldAdaptKeyText)
         {
-            val primary =
-                customText
-                    ?: if (keySurfaceDark)
-                    {
-                        Color.argb(242, 255, 255, 255)
-                    }
-                    else
-                    {
-                        Color.argb(230, 0, 0, 0)
-                    }
+            // Toolbar icons sit on the keyboard background; key labels sit on keycaps.
+            // Native keycaps are translucent, so judge each surface as composited.
+            val backdrop = solidBackground?.let { opaqueOver(it, Color.BLACK) }
+                ?: if (surfaceDark) Color.BLACK else Color.WHITE
+            val letterSurface = opaqueOver(letterColor ?: nativeLetter ?: backdrop, backdrop)
+            val keySurfaceDark = isDarkColor(letterSurface)
+
+            // Function and letter labels share keyTextColor. Keep native function
+            // keycaps on the letter keycap's side of light/dark, the way native
+            // gray specials sit next to white letters.
+            if (functionColor == null && nativeSpecial != null &&
+                isDarkColor(opaqueOver(nativeSpecial, backdrop)) != keySurfaceDark)
+            {
+                writeLongField(
+                    palette,
+                    profile.palette("keyBackgroundSpecial"),
+                    composeColor(opaqueOver(nativeSpecial, letterSurface))
+                )
+            }
+
+            fun primaryOn(dark: Boolean) =
+                customText ?: if (dark) Color.argb(242, 255, 255, 255) else Color.argb(230, 0, 0, 0)
 
             val secondary =
                 customText?.let {
@@ -543,12 +554,17 @@ object KeyboardStyleV209Hook
                     Color.argb(178, 0, 0, 0)
                 }
 
-            val primaryCompose = composeColor(primary)
-            val secondaryCompose = composeColor(secondary)
+            writeLongField(palette, profile.palette("keyTextColor"), composeColor(primaryOn(keySurfaceDark)))
 
+            // Enter keeps its native label unless its keycap or the text color is custom.
+            if (customText != null || functionColor != null)
+            {
+                val enterDark = functionColor?.let { isDarkColor(opaqueOver(it, backdrop)) } ?: keySurfaceDark
+                writeLongField(palette, profile.palette("keyTextColorEnter"), composeColor(primaryOn(enterDark)))
+            }
+
+            val surfaceText = composeColor(primaryOn(isDarkColor(backdrop)))
             listOf(
-                "keyTextColor",
-                "keyTextColorEnter",
                 "modeSelectorTitleColor",
                 "navBackIconColor",
                 "toolbarIconColor",
@@ -558,13 +574,10 @@ object KeyboardStyleV209Hook
                 "modeSelectorUnselectedIconColor",
                 "modeSelectorUnselectedTextColor"
             ).forEach { label ->
-                writeLongField(
-                    palette,
-                    profile.palette(label),
-                    primaryCompose
-                )
+                writeLongField(palette, profile.palette(label), surfaceText)
             }
 
+            val secondaryCompose = composeColor(secondary)
             listOf(
                 "keyTextColorSecondary",
                 "keyHintColor",
@@ -2193,5 +2206,21 @@ object KeyboardStyleV209Hook
     private fun composeColor(color: Int): Long
     {
         return (color.toLong() and 0xffffffffL) shl 32
+    }
+
+    /** Inverse of [composeColor]; null for colors outside sRGB (low bits carry the color space). */
+    private fun argbColor(value: Long?): Int? =
+        value?.takeIf { it and 0x3fL == 0L }?.let { (it ushr 32).toInt() }
+
+    /** [color] alpha-composited over [base], ignoring the base's own alpha. */
+    private fun opaqueOver(color: Int, base: Int): Int
+    {
+        val a = Color.alpha(color) / 255f
+        fun mix(top: Int, bottom: Int) = (top * a + bottom * (1 - a) + 0.5f).toInt()
+        return Color.rgb(
+            mix(Color.red(color), Color.red(base)),
+            mix(Color.green(color), Color.green(base)),
+            mix(Color.blue(color), Color.blue(base))
+        )
     }
 }
