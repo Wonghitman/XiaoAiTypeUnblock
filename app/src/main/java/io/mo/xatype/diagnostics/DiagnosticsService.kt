@@ -14,6 +14,7 @@ import io.mo.xatype.BuildConfig
 import io.mo.xatype.R
 import io.mo.xatype.config.ConfigManager
 import io.mo.xatype.config.AppearanceProfiles
+import io.mo.xatype.util.ImeRestartScript
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -148,7 +149,7 @@ class DiagnosticsService : Service() {
             // Capture from before restart; Android log buffers retain startup messages while su starts.
             val since = SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.US).format(Date())
             append("[collector] Restarting com.xiaomi.type at $since")
-            rootCommand("am force-stop --user $user com.xiaomi.type", 15)
+            rootCommand(ImeRestartScript.build(user), 15)
             if (cancelled.get()) return
             // Also bound the privileged child if Android kills our app without onDestroy().
             val child = launch("exec timeout 600 logcat -b main -b system -b crash -v threadtime " +
