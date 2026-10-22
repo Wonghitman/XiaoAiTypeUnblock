@@ -103,7 +103,7 @@ public final class HostSymbolsProbe {
         String[][] bridges = {
             {"keyboard.engine", "io.mo.xatype.shape.ShapeHostBridge"},
             {"keyboard.engine", "io.mo.xatype.keyboard18.Keyboard18HostBridge"},
-            {"keyboard.emoji", "io.mo.xatype.keyboard.EmojiHostBridge"},
+            {"keyboard.engine", "io.mo.xatype.keyboard.EmojiHostBridge"},
             {"keyboard.layout", "io.mo.xatype.keyboard18.Keyboard18HostLayout"},
             {"keyboard.layout", "io.mo.xatype.keyboard.KeyboardShortcutHostLayout"},
             {"keyboard.actions", "io.mo.xatype.keyboard.KeyboardShortcutHostActions"},

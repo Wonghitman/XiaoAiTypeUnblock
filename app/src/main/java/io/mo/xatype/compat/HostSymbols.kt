@@ -1,11 +1,12 @@
 package io.mo.xatype.compat
 
 /** Members of the input method (com.xiaomi.type), located by [HostFingerprints]. */
-object HostSymbols : SymbolTable(8, HostFingerprints::resolve) {
+object HostSymbols : SymbolTable(7, HostFingerprints::resolve) {
     const val T9_SHUANGPIN_INIT = "keyboard.t9ShuangpinInit"
     const val T9_SHUANGPIN_BOOLEAN = "keyboard.t9ShuangpinBoolean"
     const val T9_SHUANGPIN_STRING = "keyboard.t9ShuangpinString"
     const val KEYBOARD_ENGINE = "keyboard.engine"
+    /** Status only: emoji candidates bind through [KEYBOARD_ENGINE] and add no scan group. */
     const val KEYBOARD_EMOJI = "keyboard.emoji"
     const val KEYBOARD_LAYOUT = "keyboard.layout"
     const val KEYBOARD_ACTIONS = "keyboard.actions"
@@ -35,7 +36,7 @@ object HostSymbols : SymbolTable(8, HostFingerprints::resolve) {
         OS_VERSION_GATE, HEIGHT_RECT, HEIGHT_CLAMP, HEIGHT_RECT_GETTER, HEIGHT_LAYOUT,
         HEIGHT_DRAG, HEIGHT_DRAG_KIND, MODERN_KEYBOARD,
         BOTTOM_SPACING, BOTTOM_SPACING_CONSUME, BOTTOM_SPACING_CALLERS,
-        KEYBOARD_ENGINE, KEYBOARD_EMOJI, KEYBOARD_LAYOUT, KEYBOARD_ACTIONS, KEYBOARD_PICKER,
+        KEYBOARD_ENGINE, KEYBOARD_LAYOUT, KEYBOARD_ACTIONS, KEYBOARD_PICKER,
         KEYBOARD_SETTINGS, KEYBOARD_SWIPE, KEYBOARD_LETTER_APPEARANCE, KEYBOARD_SURFACE_TEXT,
         T9_SHUANGPIN_INIT, T9_SHUANGPIN_BOOLEAN, T9_SHUANGPIN_STRING
     )

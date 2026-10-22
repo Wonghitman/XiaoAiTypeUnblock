@@ -17,6 +17,9 @@ class EmojiCandidatesTest {
         assertEquals(listOf("🧑‍🔬", "👨‍🔬", "👩‍🔬"), table.additions("KE XUE JIA", listOf("科学家")).map { it.text })
         assertEquals(listOf("👩‍🔬"), table.additions("nü'ke'xue'jia", listOf("女科学家")).map { it.text })
         assertEquals(listOf("🐖", "🐽"), table.additions("xiaozhu", listOf("小猪", "🐷️")).map { it.text })
+        // Common single characters stay plain; only explicit aliases such as 猪 add emoji.
+        assertTrue(table.additions("shi", listOf("是", "时", "事", "十", "使")).isEmpty())
+        assertEquals(listOf("🐷", "🐖", "🐽"), table.additions("zhu", listOf("猪")).map { it.text })
         for (raw in listOf("", "xiaozhupeiqi", "小猪pei'qi", "xiaozhu1", "xiao", "123")) {
             assertTrue(raw, table.additions(raw, listOf("小猪", "猪")).isEmpty())
         }
@@ -61,6 +64,8 @@ class EmojiCandidatesTest {
         assertEquals(listOf("🐷", "🐖", "🐽"), table.additions("9688", listOf("小猪"),
             ShuangpinScheme.XIAOHE, nineKey = true).map { it.text })
         assertTrue(table.additions("9688", listOf("小猪"), ShuangpinScheme.XIAOHE).isEmpty())
+        assertEquals(listOf("🐷", "🐖", "🐽"), table.additions("9426948", listOf("小猪"), nineKey = true).map { it.text })
+        assertTrue(table.additions("9426948", listOf("小猪")).isEmpty())
         val semicolon = EmojiCandidates.read("星星\txing'xing\t⭐".reader())
         assertEquals(listOf("⭐"), semicolon.additions("x;x;", listOf("星星"), ShuangpinScheme.WEIRUAN).map { it.text })
     }
@@ -105,6 +110,8 @@ class EmojiCandidatesTest {
         assertEquals(native.raw, (proxy.f() as s).raw)
         assertTrue(bridge.supports(native))
         assertFalse(bridge.supports(proxy)) // Do not wrap independent shape/18-key proxies.
+        assertSame(native, EmojiHostBridge.unwrap(proxy))
+        assertSame(native, EmojiHostBridge.unwrap(native))
         assertEquals(listOf("小猪", "小朱"), wrapped(Native()) { false }.s().map { it.text })
         assertTrue(wrapped(Native(), { true }).let { it.s(); it.m(Int.MAX_VALUE, 2).isEmpty() })
     }

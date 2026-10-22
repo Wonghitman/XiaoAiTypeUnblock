@@ -50,7 +50,8 @@ def build(source):
                 continue
             for word in (annotation.text or '').split('|'):
                 word = word.strip()
-                if word and all('\u3400' <= c <= '\u9fff' for c in word):
+                # Single characters (\u662f, \u6709, \u4eba) top most syllables; only explicit aliases keep them.
+                if len(word) > 1 and all('\u3400' <= c <= '\u9fff' for c in word):
                     if emoji not in rows[word]:
                         rows[word].append(emoji)
     for words, emojis in ALIASES.items():

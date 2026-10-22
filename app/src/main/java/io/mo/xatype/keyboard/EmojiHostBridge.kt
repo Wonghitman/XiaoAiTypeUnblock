@@ -13,7 +13,7 @@ import java.lang.reflect.Proxy
 /** Decorate the resolved native engine; its decoding, learning and lifecycle stay native. */
 class EmojiHostBridge(
     private val loader: ClassLoader,
-    private val abi: KeyboardAbi = KeyboardAbi.require(loader, HostSymbols.KEYBOARD_EMOJI)
+    private val abi: KeyboardAbi = KeyboardAbi.require(loader, HostSymbols.KEYBOARD_ENGINE)
 ) {
     private val checked = ShapeHostBridge(loader, abi)
     val engineType = checked.engineType
@@ -39,6 +39,13 @@ class EmojiHostBridge(
         .single { it.get(instance) == value }
 
     fun supports(engine: Any): Boolean = extended.isInstance(engine) && !Proxy.isProxyClass(engine.javaClass)
+
+    companion object {
+        /** The native engine behind an emoji decoration, so diagnostics report the real class. */
+        fun unwrap(engine: Any): Any =
+            (if (Proxy.isProxyClass(engine.javaClass)) Proxy.getInvocationHandler(engine) as? EmojiHostBridge.Session else null)
+                ?.engine ?: engine
+    }
 
     fun create(engine: Any, dictionary: () -> EmojiCandidates?, enabled: () -> Boolean,
                scheme: () -> ShuangpinScheme? = { null },
@@ -129,8 +136,9 @@ class EmojiHostBridge(
                         if (head.isEmpty() || index < 0) return method.invoke(engine, *arguments)
                         val nativeIndex = if (index < head.size) indices[index] else index - (head.size - nativeSize)
                         if (nativeIndex == null) {
-                            // A delayed tap must not clear a newer or partially selected composition.
-                            if (raw() != composition) {
+                            // A delayed tap must not clear a newer or partially selected composition;
+                            // an unreadable state counts as changed rather than escaping into the host.
+                            if (runCatching { raw() }.getOrNull() != composition) {
                                 trace("selection ignored: composition changed")
                                 return if (arguments.size == 1) "" else pairConstructor.newInstance("", false)
                             }

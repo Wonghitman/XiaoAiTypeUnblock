@@ -16,7 +16,7 @@ import java.util.concurrent.CompletableFuture
 
 object EmojiCandidateHook {
     fun install(module: XposedInterface, loader: ClassLoader) {
-        val abi = KeyboardAbi.require(loader, HostSymbols.KEYBOARD_EMOJI)
+        val abi = KeyboardAbi.require(loader, HostSymbols.KEYBOARD_ENGINE)
         val bridge = EmojiHostBridge(loader, abi)
         val manager = abi.type("ab.x0")
         val serviceField = manager.declaredFields.single {
@@ -44,7 +44,10 @@ object EmojiCandidateHook {
             if (kind !in setOf("PINYIN", "T9", "SHUANGPIN") || !bridge.supports(original)) return@intercept original
             runCatching {
                 val service = serviceField.get(chain.thisObject) as InputMethodService
-                if (ConfigManager.isEmojiCandidatesEnabled()) dictionary.getNow(null) // Start loading off the input thread.
+                // Disabled users keep the unwrapped native engine; enabling takes effect after an IME restart.
+                ConfigManager.syncFromProvider(service)
+                if (!ConfigManager.isEmojiCandidatesEnabled()) return@intercept original
+                dictionary.getNow(null) // Start loading off the input thread.
                 bridge.create(original, { dictionary.getNow(null) }, {
                     val inputType = service.currentInputEditorInfo?.inputType ?: InputType.TYPE_NULL
                     val variation = inputType and InputType.TYPE_MASK_VARIATION

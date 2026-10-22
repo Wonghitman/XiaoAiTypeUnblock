@@ -5,6 +5,7 @@ import android.os.UserManager
 import android.provider.Settings
 import android.view.inputmethod.EditorInfo
 import io.github.libxposed.api.XposedInterface
+import io.mo.xatype.keyboard.EmojiHostBridge
 import io.mo.xatype.util.XposedUtils
 import java.lang.reflect.Method
 import java.util.concurrent.atomic.AtomicInteger
@@ -71,7 +72,8 @@ object InputDiagnosticsHook {
         fun read(name: String): Any? = runCatching {
             instance.javaClass.methods.firstOrNull { it.name == name && it.parameterCount == 0 }?.invoke(instance)
         }.getOrNull()
-        val engine = read("getCurrentEngine")
+        val wrapped = read("getCurrentEngine")
+        val engine = wrapped?.let(EmojiHostBridge::unwrap)
         val engineType = read("getCurrentEngineType")
         val degraded = instance.javaClass.methods.firstOrNull {
             it.name.startsWith("isKeyboardDegraded") && it.parameterCount == 0
@@ -81,7 +83,7 @@ object InputDiagnosticsHook {
         val editor = (instance as? android.inputmethodservice.InputMethodService)?.currentInputEditorInfo
         // Only class names / enums / booleans, never engine.toString() or editor text.
         XposedUtils.log(module, "[InputDiag] $stage: unlocked=$unlocked provisioned=$provisioned " +
-            "degraded=$degraded engineClass=${engine?.javaClass?.name ?: "null"} " +
+            "degraded=$degraded engineClass=${engine?.javaClass?.name ?: "null"} emojiWrapped=${engine !== wrapped} " +
             "engineType=${(engineType as? Enum<*>)?.name ?: "unknown"} " +
             "hardwareKeyboard=${context.resources.configuration.keyboard} " +
             "inputType=${editor?.inputType} imeOptions=${editor?.imeOptions}")

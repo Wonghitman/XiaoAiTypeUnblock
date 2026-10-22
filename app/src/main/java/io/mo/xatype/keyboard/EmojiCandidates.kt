@@ -9,17 +9,18 @@ class EmojiCandidates private constructor(private val words: Map<String, Entry>)
         val spellings = readings.map { it.joinToString("") }.toSet()
 
         fun matches(spelling: String, scheme: ShuangpinScheme?, nineKey: Boolean): Boolean {
-            if (spelling in spellings) return true
+            // Nine-key raw input may be digits for both full pinyin and ShuangPin codes.
+            fun same(code: String) = spelling == code || (nineKey && spelling == code.map { letter ->
+                when (letter) {
+                    in 'a'..'c' -> '2'; in 'd'..'f' -> '3'; in 'g'..'i' -> '4'
+                    in 'j'..'l' -> '5'; in 'm'..'o' -> '6'; in 'p'..'s' -> '7'
+                    in 't'..'v' -> '8'; in 'w'..'z' -> '9'; else -> letter
+                }
+            }.joinToString(""))
+            if (spellings.any(::same)) return true
             if (scheme == null) return false
             return readings.any { syllables ->
-                val code = syllables.map { scheme.encodeSyllable(it) ?: return@any false }.joinToString("")
-                spelling == code || (nineKey && spelling == code.map { letter ->
-                    when (letter) {
-                        in 'a'..'c' -> '2'; in 'd'..'f' -> '3'; in 'g'..'i' -> '4'
-                        in 'j'..'l' -> '5'; in 'm'..'o' -> '6'; in 'p'..'s' -> '7'
-                        in 't'..'v' -> '8'; in 'w'..'z' -> '9'; else -> letter
-                    }
-                }.joinToString(""))
+                same(syllables.map { scheme.encodeSyllable(it) ?: return@any false }.joinToString(""))
             }
         }
     }
@@ -29,7 +30,7 @@ class EmojiCandidates private constructor(private val words: Map<String, Entry>)
                   nineKey: Boolean = false): List<Addition> {
         val spelling = raw.lowercase(Locale.ROOT).replace('ü', 'v').filterNot { it == '\'' || it == ' ' }
         if (spelling.isEmpty() || spelling.any { it !in 'a'..'z' &&
-                !(scheme != null && (it == ';' || (nineKey && it in '2'..'9'))) }) return emptyList()
+                !(nineKey && it in '2'..'9') && !(scheme != null && it == ';') }) return emptyList()
         val seen = candidates.mapTo(HashSet()) { it.replace("\uFE0F", "") }
         val result = ArrayList<Addition>()
         // ponytail: only full, unselected compositions. Supporting partial phrases

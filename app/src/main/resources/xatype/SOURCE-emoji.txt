@@ -7,7 +7,7 @@ Modified: invert Chinese names/keywords; normalize emoji presentation; omit skin
 Candidate filtering informed by WindInput (no Rust code or Rime engine bundled).
 https://github.com/huanfeng/WindInput
 Build: python scripts/update-emoji-table.py <source-directory>
-Entries: 5330
+Entries: 4955
 zh.xml: 06b289e1b563199df2e2c51ab93ca8a3780a57a7ee82f4600828936c8323af0d
 zh-derived.xml: ff3f6baa2a6f1a8185b795e982a7712fd9aceed5e6c01cade13bb9f23687840b
 emoji-test.txt: 24f0c534e86cf142e2496953e8f0e46a3e702392911eddcd29c6cced85139697

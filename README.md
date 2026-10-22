@@ -225,9 +225,9 @@ XiaoAiTypeUnblock/
 
 在模块「键盘 → 输入增强 → Emoji 候选增强」中开启并重启输入法。打出关键词时，根据前几项汉字候选补充相关表情，保留汉字首选。每词最多 3 个、每次最多 6 个，自动去重，点选直接上屏。
 
-参考 [WindInput 的候选过滤流程](https://github.com/huanfeng/WindInput/blob/main/wind_input/crates/wind-coordinator/src/handle_candidate.rs)，使用 Unicode CLDR 47 / Emoji 16.0 与常用别名生成 5,330 个离线关键词，保留完整组合表情。数据来源、许可及生成方式见 [SOURCE-emoji.txt](app/src/main/resources/xatype/SOURCE-emoji.txt)。沿用现有 DexKit 接口指纹与缓存适配，无法匹配时保留原生引擎。
+参考 [WindInput 的候选过滤流程](https://github.com/huanfeng/WindInput/blob/main/wind_input/crates/wind-coordinator/src/handle_candidate.rs)，使用 Unicode CLDR 47 / Emoji 16.0 与常用别名生成 4,955 个离线关键词，保留完整组合表情。单字只保留猪、狗、猫、鸡等明确别名，避免「是」「有」等常用字频繁出现表情。数据来源、许可及生成方式见 [SOURCE-emoji.txt](app/src/main/resources/xatype/SOURCE-emoji.txt)。沿用现有 DexKit 接口指纹与缓存适配，无法匹配时保留原生引擎。
 
-仅增强尚未选词且完整编码匹配的整词；简拼、整句内的部分词、密码框、独立形码 / 18 键引擎不增强。原生双拼读取当前方案，复用已有七种双拼编码规则，同时接受宿主返回的展开拼音和双拼编码；九键双拼使用独立设置，支持数字编码。
+仅增强尚未选词且完整编码匹配的整词；简拼、整句内的部分词、密码框、独立形码 / 18 键引擎不增强。原生双拼读取当前方案，复用已有七种双拼编码规则，同时接受宿主返回的展开拼音和双拼编码；九键双拼使用独立设置；九键全拼与双拼都支持数字编码。开关关闭时不接管原生引擎。
 
 已通过单元测试、Debug 构建，以及 0.2.1053.06f65b7c（21053）APK 的接口扫描、缓存重载和构造器绑定验证。原生 26 键小鹤双拼已由用户实测确认可用；其他方案与九键仍待实测。Debug 包输出有限的 `[Emoji]` 状态日志，包含方案、候选数量和点选状态，不记录输入内容。
 
