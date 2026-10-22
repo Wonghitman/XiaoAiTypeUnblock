@@ -12,7 +12,7 @@ import org.luckypray.dexkit.wrap.DexMethod
 
 /**
  * Fingerprints anchored on strings, constants and non-obfuscated types that
- * stayed stable across host builds 0.2.701 to 0.2.1053. Each one must match
+ * stayed stable across host builds 0.2.701 to 0.2.1246. Each one must match
  * exactly one member; ambiguity is treated as a miss rather than a guess.
  */
 internal object HostFingerprints {
@@ -211,7 +211,8 @@ internal object HostFingerprints {
                     usingNumbers(-50, 50)
                 }
             }.filter {
-                it.paramTypeNames.take(2) == listOf("int", SERVICE) &&
+                // 0.2.1246 moved the int parameter from first to last.
+                it.paramTypeNames.containsAll(listOf("int", SERVICE)) &&
                     invokes(it, clamp.descriptor, getterDescriptor)
             }, "keyboard dimension layout"
         )

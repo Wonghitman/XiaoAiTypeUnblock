@@ -80,9 +80,7 @@ object Keyboard18Hook {
         val codeField = keyClass.abiField(abi, "a").apply { isAccessible = true }
         val labelField = keyClass.abiField(abi, "b").apply { isAccessible = true }
         val kindField = keyClass.abiField(abi, "f").apply { isAccessible = true }
-        val layoutFactory = abi.type("ab.p1").abiMethod(abi, "e",
-            String::class.java, Integer::class.java, String::class.java, Boolean::class.javaPrimitiveType,
-            abi.type("la.a"))
+        val layoutFactory = KeyboardAbi.qwertyFactory(abi)
         // ab.p1.a is declared as MiInputMethodService, not its Context superclass.
         val layoutContext = layoutFactory.declaringClass.declaredFields.single { hostService.isAssignableFrom(it.type) }
             .apply { isAccessible = true }

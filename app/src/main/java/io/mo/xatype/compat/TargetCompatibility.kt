@@ -55,6 +55,9 @@ data class ModernKeyboardProfile(
 
     fun appsPanel(label: String): String = appsPanelFields.getValue(label)
 
+    /** Null for labels listed in [OPTIONAL_APPS_PANEL_LABELS] that this build lacks. */
+    fun appsPanelOrNull(label: String): String? = appsPanelFields[label]
+
     /** Validate property caches before reporting a cache hit. */
     fun validate(loader: ClassLoader): Boolean = runCatching {
         fun type(name: String) = Class.forName(name, false, loader)
@@ -63,7 +66,7 @@ data class ModernKeyboardProfile(
             names.forEach { owner.getDeclaredField(it) }
         }
         require(paletteFields.keys.containsAll(PALETTE_LABELS))
-        require(appsPanelFields.keys.containsAll(APPS_PANEL_LABELS))
+        require(appsPanelFields.keys.containsAll(REQUIRED_APPS_PANEL_LABELS))
         fields(helperClassName, listOf(helperServiceField, helperMaterialField, helperStateField) + helperTokenFields)
         fields(rendererClassName, listOf(rendererServiceField, rendererViewField, rendererEffectField))
         fields(paletteClassName, paletteFields.values)
@@ -102,6 +105,9 @@ data class ModernKeyboardProfile(
             "background", "cardBackground", "cardIconColor", "cardTextColor",
             "toggleActiveColor", "backArrowColor", "tooltipBackground", "tooltipTextColor"
         )
+        /** Tooltip colors left AppsPanelColors in 0.2.1246. */
+        val OPTIONAL_APPS_PANEL_LABELS = setOf("tooltipBackground", "tooltipTextColor")
+        val REQUIRED_APPS_PANEL_LABELS = APPS_PANEL_LABELS - OPTIONAL_APPS_PANEL_LABELS
 
         private val VERIFIED_PALETTE_FIELDS = PALETTE_LABELS.zip(
             listOf(

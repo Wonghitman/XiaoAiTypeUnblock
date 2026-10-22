@@ -40,8 +40,16 @@ class ShortcutSwipeHostHook(private val enabled: () -> Boolean, private val layo
         val abi = KeyboardAbi.require(loader, HostSymbols.KEYBOARD_SWIPE)
         val bridge = ShortcutSwipeHostBridge(loader, abi)
         val renderer = abi.namedMethods(abi.type("z9.w5"), "a").single {
-            it.parameterCount == 30 && it.parameterTypes.first() == bridge.key
+            it.parameterCount >= 30 && it.parameterTypes.first() == bridge.key
         }
+        // 0.2.1246 inserted two parameters ahead of onKeyPress, so positions come from types:
+        // onKeyPress is the first key callback, and Compose's $changed ints follow the composer
+        // with three bits per parameter, ten parameters per int.
+        val callbackIndex = renderer.parameterTypes.indexOfFirst { it == abi.type("bd.b") }
+        val composerIndex = renderer.parameterTypes.indexOfFirst { it == abi.type("s0.p") }
+        check(callbackIndex > MODIFIER_INDEX && composerIndex > callbackIndex) { "key renderer layout" }
+        fun changedIndex(parameter: Int) = composerIndex + 1 + parameter / 10
+        fun changedMask(parameter: Int) = (0x7 shl (1 + 3 * (parameter % 10))).inv()
         val text = abi.namedMethods(abi.type("p0.n"), "a").single {
             it.parameterCount == 19 && it.parameterTypes[0] == String::class.java &&
                 it.parameterTypes[1] == bridge.modifier
@@ -52,25 +60,28 @@ class ShortcutSwipeHostHook(private val enabled: () -> Boolean, private val layo
             val source = chain.getArg(0)!!
             val currentLayout = layout() ?: return@intercept chain.proceed()
             val action = bridge.action(source, currentLayout) ?: return@intercept chain.proceed()
-            val owner = bridge.view(chain.getArg(26)!!)
+            val owner = bridge.view(chain.getArg(composerIndex)!!)
             val id = "${currentLayout}:${source.javaClass.abiField(abi, "a").getInt(source)}:${bridge.label(source)}"
             val key = keys.getOrPut(owner) { LinkedHashMap() }.getOrPut(id) {
-                Key(WeakReference(owner), source, action, bridge.unwrap(chain.getArg(10)!!), bridge.progressState(), currentLayout)
+                Key(WeakReference(owner), source, action, bridge.unwrap(chain.getArg(callbackIndex)!!), bridge.progressState(), currentLayout)
             }
             key.source = source
-            key.callback = bridge.unwrap(chain.getArg(10)!!)
+            key.callback = bridge.unwrap(chain.getArg(callbackIndex)!!)
             val args = chain.args.toTypedArray()
-            if (args[2] !== key.decoratedModifier && args[2] !== key.originalModifier) {
-                key.originalModifier = args[2]
-                key.decoratedModifier = bridge.positioned(args[2]!!) {
+            if (args[MODIFIER_INDEX] !== key.decoratedModifier && args[MODIFIER_INDEX] !== key.originalModifier) {
+                key.originalModifier = args[MODIFIER_INDEX]
+                key.decoratedModifier = bridge.positioned(args[MODIFIER_INDEX]!!) {
                     key.coordinates = WeakReference(it)
                     key.width = bridge.bounds(it)?.width() ?: Float.MAX_VALUE
                 }
             }
-            args[2] = key.decoratedModifier ?: args[2]
-            args[10] = bridge.guarded(key.callback) { key.blockNative }
-            args[27] = (args[27] as Int) and 0x380.inv() // Re-evaluate the injected modifier.
-            args[28] = (args[28] as Int) and 0xe.inv()
+            args[MODIFIER_INDEX] = key.decoratedModifier ?: args[MODIFIER_INDEX]
+            args[callbackIndex] = bridge.guarded(key.callback) { key.blockNative }
+            // Re-evaluate the injected modifier and callback.
+            for (parameter in listOf(MODIFIER_INDEX, callbackIndex)) {
+                val index = changedIndex(parameter)
+                args[index] = (args[index] as Int) and changedMask(parameter)
+            }
             val previous = rendering.get()
             rendering.set(key)
             try { chain.proceed(args) } finally {
@@ -166,5 +177,10 @@ class ShortcutSwipeHostHook(private val enabled: () -> Boolean, private val layo
             if (current.nativeCancelled) true else chain.proceed()
         }
         module.deoptimize(dispatch)
+    }
+
+    private companion object {
+        /** The key's Modifier, unmoved in every verified renderer. */
+        const val MODIFIER_INDEX = 2
     }
 }

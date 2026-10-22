@@ -14,9 +14,14 @@ class Keyboard18HostLayout(loader: ClassLoader, private val abi: KeyboardAbi = K
     private val float = Float::class.javaPrimitiveType!!
     private val bool = Boolean::class.javaPrimitiveType!!
     private val string = String::class.java
+    // 0.2.1246 appended absorbsAdjacentGap; null on builds without it.
+    private val absorbsGap = abi.fieldOrNull(key, "s")?.apply { isAccessible = true }
     private val keyConstructor = key.getConstructor(int, string, float, java.lang.Float::class.java,
         java.lang.Float::class.java, kind, string, string, List::class.java, Integer::class.java,
-        Integer::class.java, bool, java.lang.Boolean::class.java, bool, bool, Integer::class.java, bool, Integer::class.java)
+        Integer::class.java, bool, java.lang.Boolean::class.java, bool, bool, Integer::class.java, bool, Integer::class.java,
+        *listOfNotNull(absorbsGap?.let { bool }).toTypedArray())
+    private fun newKeyData(vararg values: Any?, absorbs: Boolean = false): Any =
+        keyConstructor.newInstance(*values, *(if (absorbsGap != null) arrayOf<Any?>(absorbs) else emptyArray()))
     private val rowConstructor = row.getConstructor(float, List::class.java, List::class.java)
     private val layoutConstructor = layout.getConstructor(string, string, List::class.java, List::class.java,
         java.lang.Float::class.java, java.lang.Float::class.java, bool, java.lang.Float::class.java, bool)
@@ -57,17 +62,18 @@ class Keyboard18HostLayout(loader: ClassLoader, private val abi: KeyboardAbi = K
         val width = if (fixed.all { it != null }) fixed.sumOf { it!!.toDouble() }.toFloat() + spacing * (first.size - 1) else null
         val uppercase = letters.any { fields.getValue("a").getInt(it).toChar() in 'A'..'Z' }
         fun newKey(code: Int, label: String, weight: Float, hint: String?, popup: List<String>?): Any =
-            keyConstructor.newInstance(code, label, weight, null, height, charKind, hint,
+            newKeyData(code, label, weight, null, height, charKind, hint,
                 hint?.takeIf { it.length == 1 }, popup, 0, null, false, english, false, false, null, false, null)
-        fun gap(): Any = keyConstructor.newInstance(-998, "", Keyboard18Style.SIDE_WEIGHT, null,
+        fun gap(): Any = newKeyData(-998, "", Keyboard18Style.SIDE_WEIGHT, null,
             height, gapKind, null, null, null, null, null, false, null, false, false, null, false, null)
-        fun resized(source: Any, fixedWidth: Float?, weight: Float): Any = keyConstructor.newInstance(
+        fun resized(source: Any, fixedWidth: Float?, weight: Float): Any = newKeyData(
             fields.getValue("a").get(source), fields.getValue("b").get(source), weight, fixedWidth,
             fields.getValue("e").get(source), fields.getValue("f").get(source), fields.getValue("g").get(source),
             fields.getValue("h").get(source), fields.getValue("i").get(source), fields.getValue("j").get(source),
             fields.getValue("k").get(source), fields.getValue("l").get(source), fields.getValue("m").get(source),
             fields.getValue("n").get(source), fields.getValue("o").get(source), fields.getValue("p").get(source),
-            fields.getValue("q").get(source), fields.getValue("r").get(source))
+            fields.getValue("q").get(source), fields.getValue("r").get(source),
+            absorbs = absorbsGap?.getBoolean(source) ?: false)
         val newRows = Keyboard18Keys.rows.mapIndexed { index, groups ->
             val keys = groups.map { group ->
                 val hint = Keyboard18Keys.hints[Keyboard18Keys.groups.indexOf(group)]

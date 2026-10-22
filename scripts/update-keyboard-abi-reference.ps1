@@ -1,10 +1,13 @@
 # Generate structural witnesses from a verified APK; never installs or starts the IME.
+# With -Aliases (see compat/keyboard-abi-aliases-21246.py) the witnesses of another
+# host build are keyed by the reference IDs of the verified one.
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)][string]$TargetApk,
     [string]$DeviceSerial,
     [string]$ModuleApk,
-    [string]$OutputFile
+    [string]$OutputFile,
+    [string]$Aliases
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -55,10 +58,12 @@ Invoke-Adb push "$workDir/dex/classes.dex" "$remoteDir/probe.dex" | Out-Null
 Invoke-Adb push $ModuleApk "$remoteDir/module.apk" | Out-Null
 Invoke-Adb push $TargetApk "$remoteDir/target.apk" | Out-Null
 Invoke-Adb push "$workDir/manifest.json" "$remoteDir/manifest.json" | Out-Null
+if ($Aliases) { Invoke-Adb push (Resolve-Path -LiteralPath $Aliases).Path "$remoteDir/aliases.json" | Out-Null }
 Get-ChildItem "$workDir/lib" | ForEach-Object { Invoke-Adb push $_.FullName "$remoteDir/lib/$($_.Name)" | Out-Null }
 Invoke-Adb shell chmod 444 "$remoteDir/probe.dex" "$remoteDir/module.apk" "$remoteDir/target.apk" | Out-Null
 $command = "CLASSPATH=$remoteDir/probe.dex:$remoteDir/module.apk app_process /system/bin KeyboardAbiReferenceProbe " +
     "$remoteDir/lib $remoteDir/target.apk $remoteDir/work $remoteDir/manifest.json $remoteDir/reference.json"
+if ($Aliases) { $command += " $remoteDir/aliases.json" }
 Invoke-Adb shell su -c "'$command'" | Tee-Object -FilePath "$workDir/result.txt"
 Invoke-Adb shell su -c "'chmod 644 $remoteDir/reference.json'" | Out-Null
 New-Item -ItemType Directory -Force (Split-Path $OutputFile -Parent) | Out-Null

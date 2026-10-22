@@ -742,11 +742,9 @@ object KeyboardStyleV209Hook
                     "backArrowColor",
                     "tooltipTextColor"
                 ).forEach { label ->
-                    writeLongField(
-                        appsPanel,
-                        profile.appsPanel(label),
-                        primaryCompose
-                    )
+                    profile.appsPanelOrNull(label)?.let { field ->
+                        writeLongField(appsPanel, field, primaryCompose)
+                    }
                 }
 
                 writeLongField(
@@ -778,7 +776,7 @@ object KeyboardStyleV209Hook
             {
                 val value = composeColor(resolvedCard)
                 writeLongField(appsPanel, profile.appsPanel("cardBackground"), value)
-                writeLongField(appsPanel, profile.appsPanel("tooltipBackground"), value)
+                profile.appsPanelOrNull("tooltipBackground")?.let { writeLongField(appsPanel, it, value) }
             }
         }
     }

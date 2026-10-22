@@ -31,8 +31,7 @@ object KeyboardShortcutsHook {
         val context = manager.declaredFields.single { hostService.isAssignableFrom(it.type) }
             .apply { isAccessible = true }
         val engineType = abi.type("z8.g")
-        val factory = manager.abiMethod(abi, "e", String::class.java, Integer::class.java,
-            String::class.java, Boolean::class.javaPrimitiveType, abi.type("la.a"))
+        val factory = KeyboardAbi.qwertyFactory(abi)
         val callbacks = abi.type("ab.b1")
         val handler = abi.type("ab.f1").abiMethod(abi, "c", layouts.key, callbacks)
         val label = layouts.key.abiField(abi, "b").apply { isAccessible = true }

@@ -51,7 +51,8 @@ class Keyboard18HostBridge(private val loader: ClassLoader, private val profile:
                 "e" -> false
                 "f" -> if (engine.raw.isEmpty()) idle else stateConstructor.newInstance(8,
                     engine.raw, engine.display, emptyList<Any>())
-                "g", "r" -> result(engine.snapshot(false))
+                "g", "r", "filterSingleChar" -> result(engine.snapshot(false))
+                "singleCharFilterSupported" -> false
                 "i" -> { onInput(); result(engine.input((arguments[0] as Int).toChar())) }
                 "j" -> ""
                 "k" -> result(engine.backspace())

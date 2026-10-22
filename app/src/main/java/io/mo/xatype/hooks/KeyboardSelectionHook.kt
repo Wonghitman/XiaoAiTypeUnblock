@@ -127,7 +127,7 @@ object KeyboardSelectionHook {
         val value = single.abiField(abi, "n0").apply { isAccessible = true }
         val add = group.abiMethod(abi, "L", preference)
         val icon = preference.abiField(abi, "j").apply { isAccessible = true }
-        val bind = abi.type("qh.c").abiMethod(abi, "y", base, String::class.java,
+        val bind = abi.method("qh.y", "y", base, String::class.java,
             Map::class.java, String::class.java, callback)
         val invoke = callback.abiMethod(abi, "g", Any::class.java)
         val service = abi.type("com.mi.ime.MiInputMethodService")

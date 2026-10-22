@@ -16,8 +16,9 @@ class Keyboard18HostAppearance(private val layouts: Keyboard18HostLayout) {
         val composer = abi.type("s0.p")
         val modifier = abi.type("e1.o")
         val alignment = abi.type("e1.g")
+        // 30 parameters through 0.2.1053, 32 from 0.2.1246; only the key is read.
         val renderer = abi.namedMethods(abi.type("z9.w5"), "a").single {
-            it.parameterCount == 30 && it.parameterTypes.first() == key
+            it.parameterCount >= 30 && it.parameterTypes.first() == key
         }
         val sizing = abi.type("ma.v")
         val typography = sizing.abiMethod(abi, "Q", Int::class.javaPrimitiveType, composer)

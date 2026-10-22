@@ -10,13 +10,16 @@ class KeyboardShortcutHostLayout(loader: ClassLoader, private val abi: KeyboardA
     val key = abi.type("ka.c")
     val layout = abi.type("ka.g")
     private val kind = abi.type("ka.f")
-    private val fields = ('a'..'r').map { key.abiField(abi, it.toString()).apply { isAccessible = true } }
+    // 0.2.1246 appended absorbsAdjacentGap (s); copied along with the other fields.
+    private val fields = (('a'..'r').map { key.abiField(abi, it.toString()) } + listOfNotNull(abi.fieldOrNull(key, "s")))
+        .onEach { it.isAccessible = true }
     private val constructor = key.getConstructor(Int::class.javaPrimitiveType, String::class.java,
         Float::class.javaPrimitiveType, java.lang.Float::class.java, java.lang.Float::class.java,
         kind, String::class.java, String::class.java, List::class.java, Integer::class.java,
         Integer::class.java, Boolean::class.javaPrimitiveType, java.lang.Boolean::class.java,
         Boolean::class.javaPrimitiveType, Boolean::class.javaPrimitiveType, Integer::class.java,
-        Boolean::class.javaPrimitiveType, Integer::class.java)
+        Boolean::class.javaPrimitiveType, Integer::class.java,
+        *fields.drop(18).map { it.type }.toTypedArray())
     fun label(instance: Any) = fields[1].get(instance) as String
     fun action(instance: Any, layout: KeyboardShortcutLayout): String? {
         if ((fields[5].get(instance) as Enum<*>).name != "CHAR") return null

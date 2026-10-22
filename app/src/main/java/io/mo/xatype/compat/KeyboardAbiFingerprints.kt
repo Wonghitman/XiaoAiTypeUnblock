@@ -10,13 +10,31 @@ import org.luckypray.dexkit.wrap.DexClass
  * Reference IDs identify bridge operations, never host names to fall back to.
  * Witnesses match bytecode and strings, then follow instruction-order call/field
  * references. Renaming a class, method or field does not change these witnesses.
+ * Each [KeyboardAbiReference] variant holds the witnesses of one host build;
+ * a group takes the first variant that resolves completely.
  */
 internal class KeyboardAbiFingerprints(private val bridge: DexKitBridge) {
-    private val reference = KeyboardAbiReference.data
+    private val variants = KeyboardAbiReference.variants.map { Variant(bridge, it) }
+
+    fun resolve(group: String): List<String> {
+        val misses = ArrayList<String>()
+        for (variant in variants) {
+            try {
+                return variant.resolve(group)
+            } catch (miss: FingerprintMiss) {
+                misses += miss.message.orEmpty()
+            }
+        }
+        throw FingerprintMiss(misses.joinToString(" | "))
+    }
+}
+
+/** Resolves IDs with the witnesses of one reference build. */
+private class Variant(private val bridge: DexKitBridge, private val reference: JSONObject) {
     private val resolved = HashMap<String, String>()
     private val anchors = HashMap<String, Result<MethodData>>()
 
-    fun resolve(group: String): List<String> = KeyboardAbiReference.keys(group).map { id ->
+    fun resolve(group: String): List<String> = KeyboardAbiReference.keys(group, reference).map { id ->
         "$id=${symbol(id)}"
     }
 
@@ -81,14 +99,28 @@ internal class KeyboardAbiFingerprints(private val bridge: DexKitBridge) {
 }
 
 internal object KeyboardAbiReference {
-    val data: JSONObject by lazy {
-        val stream = checkNotNull(javaClass.getResourceAsStream("/xatype/keyboard-abi.json")) {
-            "Keyboard ABI reference resource unavailable"
+    /** Witnesses from verified host builds, newest first; all share the same ID labels. */
+    private val resources = listOf("/xatype/keyboard-abi-21246.json", "/xatype/keyboard-abi.json")
+
+    val variants: List<JSONObject> by lazy {
+        resources.map { name ->
+            val stream = checkNotNull(javaClass.getResourceAsStream(name)) {
+                "Keyboard ABI reference resource unavailable: $name"
+            }
+            stream.bufferedReader(Charsets.UTF_8).use { JSONObject(it.readText()) }
         }
-        stream.bufferedReader(Charsets.UTF_8).use { JSONObject(it.readText()) }
     }
 
-    fun keys(group: String): List<String> = data.getJSONObject("groups").getJSONArray(group).let { array ->
-        List(array.length()) { array.getString(it) }
+    /** The 0.2.1053 reference; its IDs name the desktop fixtures. */
+    val data: JSONObject get() = variants.last()
+
+    fun keys(group: String, reference: JSONObject = data): List<String> =
+        reference.getJSONObject("groups").optJSONArray(group)?.let { array ->
+            List(array.length()) { array.getString(it) }
+        } ?: throw FingerprintMiss("$group: not in this reference")
+
+    /** The variant whose IDs for [group] are exactly [ids]; a profile records no variant name. */
+    fun variant(group: String, ids: Set<String>): JSONObject? = variants.firstOrNull { reference ->
+        runCatching { keys(group, reference).toSet() == ids }.getOrDefault(false)
     }
 }

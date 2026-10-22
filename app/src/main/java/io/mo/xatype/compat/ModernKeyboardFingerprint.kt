@@ -137,7 +137,7 @@ internal object ModernKeyboardFingerprint {
         requireLabels("KeyboardColors", paletteFields, ModernKeyboardProfile.PALETTE_LABELS)
         val appsPanel = palette.getDeclaredField(paletteFields.getValue("appsPanel")).type
         val appsPanelFields = DataClassLabels.resolve(appsPanel)
-        requireLabels("appsPanel", appsPanelFields, ModernKeyboardProfile.APPS_PANEL_LABELS)
+        requireLabels("appsPanel", appsPanelFields, ModernKeyboardProfile.REQUIRED_APPS_PANEL_LABELS)
 
         // The @Composable accessor that picks the light or dark palette.
         val factory = single(
@@ -186,7 +186,8 @@ internal object ModernKeyboardFingerprint {
             tokenBlurField = blur.name,
             tokenBlendField = blend.name,
             paletteFields = ModernKeyboardProfile.PALETTE_LABELS.associateWith(paletteFields::getValue),
-            appsPanelFields = ModernKeyboardProfile.APPS_PANEL_LABELS.associateWith(appsPanelFields::getValue)
+            appsPanelFields = ModernKeyboardProfile.APPS_PANEL_LABELS.filter { it in appsPanelFields }
+                .associateWith(appsPanelFields::getValue)
         )
     }
 

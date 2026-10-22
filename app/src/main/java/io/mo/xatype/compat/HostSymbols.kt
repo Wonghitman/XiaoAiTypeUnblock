@@ -1,7 +1,7 @@
 package io.mo.xatype.compat
 
 /** Members of the input method (com.xiaomi.type), located by [HostFingerprints]. */
-object HostSymbols : SymbolTable(7, HostFingerprints::resolve) {
+object HostSymbols : SymbolTable(8, HostFingerprints::resolve) {
     const val T9_SHUANGPIN_INIT = "keyboard.t9ShuangpinInit"
     const val T9_SHUANGPIN_BOOLEAN = "keyboard.t9ShuangpinBoolean"
     const val T9_SHUANGPIN_STRING = "keyboard.t9ShuangpinString"

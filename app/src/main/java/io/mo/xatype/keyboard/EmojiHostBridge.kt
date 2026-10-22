@@ -153,7 +153,7 @@ class EmojiHostBridge(
                             method.invoke(engine, *forwarded)
                         }
                     }
-                    "a", "e", "f", "j", "v" -> method.invoke(engine, *arguments)
+                    "a", "e", "f", "j", "v", "singleCharFilterSupported" -> method.invoke(engine, *arguments)
                     else -> {
                         reset()
                         method.invoke(engine, *arguments)

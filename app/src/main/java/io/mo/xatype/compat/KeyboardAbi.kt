@@ -54,6 +54,22 @@ class KeyboardAbi private constructor(private val loader: ClassLoader, private v
         return candidates.singleOrNull() ?: error("Unresolved keyboard method: $prefix (${candidates.size} matches)")
     }
 
+    /**
+     * Resolve by owner ID instead of by class, for IDs that share a host class
+     * with another ID in some builds (see `qh.y`).
+     */
+    fun method(owner: String, name: String, vararg parameters: Class<*>): Method {
+        val prefix = "m:$owner#$name("
+        val candidates = symbols.keys.filter { it.startsWith(prefix) }.map { id ->
+            methods.getOrPut(id) { DexMethod(symbols.getValue(id)).getMethodInstance(loader).apply { isAccessible = true } }
+        }.filter { it.parameterTypes.contentEquals(parameters) }.distinct()
+        return candidates.singleOrNull() ?: error("Unresolved keyboard method: $prefix (${candidates.size} matches)")
+    }
+
+    /** Null when no ID names this field, e.g. a member added by a later host build. */
+    fun fieldOrNull(type: Class<*>, name: String): Field? =
+        if (symbols.containsKey("f:${alias(type)}#$name")) field(type, name) else null
+
     fun namedMethods(type: Class<*>, name: String): List<Method> {
         val prefix = "m:${alias(type)}#$name("
         return symbols.keys.filter { it.startsWith(prefix) }.map { id ->
@@ -99,6 +115,14 @@ class KeyboardAbi private constructor(private val loader: ClassLoader, private v
             return KeyboardAbi(loader, combined)
         }
 
+        /** The QWERTY layout factory by its leading parameters; 0.2.1246 dropped the trailing shift state. */
+        fun qwertyFactory(abi: KeyboardAbi): Method {
+            val prefix = listOf(String::class.java, Integer::class.java, String::class.java, java.lang.Boolean.TYPE)
+            return abi.namedMethods(abi.type("ab.p1"), "e").single {
+                it.parameterTypes.take(4) == prefix && it.returnType == abi.type("ka.g")
+            }
+        }
+
         /** Explicit fixture injection; production hooks always use [require]. */
         internal fun reference(loader: ClassLoader): KeyboardAbi = KeyboardAbi(loader,
             KeyboardAbiReference.data.getJSONObject("reference").let { json ->
@@ -114,8 +138,10 @@ class KeyboardAbi private constructor(private val loader: ClassLoader, private v
 
         internal fun validate(group: String, values: List<String>, loader: ClassLoader): Boolean = runCatching {
             val profile = parse(values)
-            require(profile.keys == KeyboardAbiReference.keys(group).toSet()) { "Incomplete keyboard ABI profile" }
-            val reference = KeyboardAbiReference.data.getJSONObject("reference")
+            val variant = requireNotNull(KeyboardAbiReference.variant(group, profile.keys)) {
+                "Incomplete keyboard ABI profile"
+            }
+            val reference = variant.getJSONObject("reference")
             fun compatible(expected: String, actual: Class<*>): Boolean {
                 val mapped = profile["c:$expected"]
                 return if (mapped != null) DexClass(mapped).typeName == actual.name
@@ -124,7 +150,7 @@ class KeyboardAbi private constructor(private val loader: ClassLoader, private v
                 else true
             }
             profile.forEach { (id, descriptor) ->
-                val rule = KeyboardAbiReference.data.getJSONObject("rules").getJSONObject(id)
+                val rule = variant.getJSONObject("rules").getJSONObject(id)
                 when {
                     id.startsWith("c:") -> {
                         val type = DexClass(descriptor).getInstance(loader)

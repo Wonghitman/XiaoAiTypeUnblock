@@ -52,6 +52,11 @@ class ShapeHostBridge(private val loader: ClassLoader, private val abi: Keyboard
             "n" to (pairType to arrayOf(intType, stringType)), "p" to (voidType to arrayOf(intType)),
             "r" to (resultType to arrayOf(intType)), "v" to (listType to emptyArray())
         )
+        // 0.2.1246 added the "全部/单字" candidate filter; these proxies never offer it.
+        if (abi.namedMethods(extendedInterface, "singleCharFilterSupported").isNotEmpty()) {
+            expected["singleCharFilterSupported"] = booleanType to emptyArray()
+            expected["filterSingleChar"] = resultType to arrayOf(booleanType)
+        }
         require(extendedInterface.methods.size == expected.size) { "形码接口数量不匹配" }
         expected.forEach { (name, signature) ->
             require(extendedInterface.abiMethod(abi, name, *signature.second).returnType == signature.first) {
@@ -116,7 +121,8 @@ class ShapeHostBridge(private val loader: ClassLoader, private val abi: Keyboard
                     val selected = engine.select(arg[0] as Int)
                     pairConstructor.newInstance(selected.orEmpty(), selected != null)
                 }
-                "r" -> result(engine.snapshot(false))
+                "r", "filterSingleChar" -> result(engine.snapshot(false))
+                "singleCharFilterSupported" -> false
                 "v" -> emptyList<Any>()
                 else -> error("Unexpected host method: ${method.name}")
             }

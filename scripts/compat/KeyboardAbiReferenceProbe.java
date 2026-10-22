@@ -103,6 +103,10 @@ public final class KeyboardAbiReferenceProbe {
         throw new IllegalStateException("No unique class witness: " + name);
     }
     static JSONObject methodRule(MethodData target, String alias) throws Exception {
+        return methodRule(target, alias, alias.substring(2, alias.indexOf('#')));
+    }
+    /** requestedOwner is the real class the ID's owner label resolves to. */
+    static JSONObject methodRule(MethodData target, String alias, String requestedOwner) throws Exception {
         String scope = owners.get(target.getClassName());
         JSONObject value = recipe(target, scope, "method", -1);
         if (value != null) return value;
@@ -114,7 +118,6 @@ public final class KeyboardAbiReferenceProbe {
             }
         }
         // DEX may encode an inherited interface call against the requested subtype.
-        String requestedOwner = alias.substring(2, alias.indexOf('#'));
         String virtualDescriptor = "L" + requestedOwner.replace('.', '/') + ";->" + target.getName() +
                 target.getDescriptor().substring(target.getDescriptor().indexOf('('));
         MethodData virtual = bridge.getMethodData(virtualDescriptor);
@@ -172,6 +175,54 @@ public final class KeyboardAbiReferenceProbe {
     public static void main(String[] args) {
         try { run(args); } catch (Throwable failure) { failure.printStackTrace(System.out); System.exit(1); }
     }
+    /**
+     * Alias mode: args[5] maps each reference ID to a member of the target APK,
+     * so another host build reuses the IDs (labels) of the verified reference.
+     */
+    static void runAliases(String[] args) throws Exception {
+        JSONObject aliases=new JSONObject(read(args[5]));
+        JSONObject targets=aliases.getJSONObject("targets"), groupKeys=aliases.getJSONObject("groups");
+        Map<String,String> labels=new HashMap<>();
+        for(Iterator<String> ids=targets.keys();ids.hasNext();) {
+            String id=ids.next();
+            if(id.startsWith("c:")) labels.put(new DexClass(targets.getString(id)).getTypeName(), id.substring(2));
+        }
+        try(DexKitBridge opened=DexKitBridge.create(args[1])) {
+            bridge=opened;
+            owners.putAll(labels);
+            // Inherited members declared outside the mapped classes get their own class rules.
+            for(Iterator<String> ids=targets.keys();ids.hasNext();) {
+                String id=ids.next();
+                if(!id.startsWith("m:")) continue;
+                String owner=new DexMethod(targets.getString(id)).getClassName();
+                if(!owners.containsKey(owner)) owners.put(owner, owner);
+            }
+            for(Map.Entry<String,String> entry:new TreeMap<>(owners).entrySet()) {
+                String id="c:"+entry.getValue();
+                if(rules.containsKey(id)) continue;
+                rules.put(id,classRule(entry.getKey()).put("kind",bridge.getClassData(entry.getKey()).getModifiers() & (0x0200|0x0400|0x4000)));
+                System.out.println("CLASS "+id+" "+entry.getKey());
+            }
+            for(Iterator<String> ids=targets.keys();ids.hasNext();) {
+                String id=ids.next(); String target=targets.getString(id);
+                if(id.startsWith("m:")) {
+                    MethodData data=bridge.getMethodData(target);
+                    if(data==null) throw new IllegalStateException("Method missing: "+target);
+                    String requested=new DexClass(targets.getString("c:"+id.substring(2,id.indexOf('#')))).getTypeName();
+                    rules.put(id,methodRule(data,id,requested).put("static",Modifier.isStatic(data.getModifiers())));
+                } else if(id.startsWith("f:")) {
+                    FieldData data=bridge.getFieldData(target);
+                    if(data==null) throw new IllegalStateException("Field missing: "+target);
+                    rules.put(id,fieldRule(data).put("static",Modifier.isStatic(data.getModifiers())));
+                }
+                System.out.println("SYMBOL "+id);
+            }
+            JSONObject output=new JSONObject().put("format",1).put("groups",groupKeys).put("rules",new JSONObject(rules))
+                    .put("anchors",new JSONObject(anchors)).put("reference",aliases.getJSONObject("reference"));
+            try(Writer writer=new OutputStreamWriter(new FileOutputStream(args[4]),StandardCharsets.UTF_8)) {writer.write(output.toString(2));}
+            System.out.println("DONE "+rules.size()+" symbols; "+anchors.size()+" witnesses");
+        }
+    }
     static void run(String[] args) throws Exception {
         System.out.println("Loading reference probe");
         File cpp = new File(args[0], "libc++_shared.so");
@@ -179,6 +230,7 @@ public final class KeyboardAbiReferenceProbe {
         System.load(args[0]+"/libdexkit.so");
         System.out.println("Native libraries loaded");
         loader=new DexClassLoader(args[1],args[2],null,ClassLoader.getSystemClassLoader().getParent());
+        if(args.length>5) { runAliases(args); return; }
         JSONObject manifest=new JSONObject(read(args[3]));
         for (Iterator<String> groups=manifest.keys();groups.hasNext();) {
             JSONArray classes=manifest.getJSONObject(groups.next()).getJSONArray("classes");
