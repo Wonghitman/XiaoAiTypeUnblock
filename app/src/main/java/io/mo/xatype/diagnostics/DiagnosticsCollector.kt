@@ -57,6 +57,11 @@ object DiagnosticsCollector {
         }, "input-diagnostic-stop").start()
     }
 
+    /** Wall-clock start of the running root capture, or 0 while none is running yet. */
+    fun startedAt(context: Context): Long = prefs(context.applicationContext).let {
+        if (it.getInt(KEY_GROUP, 0) == 0) 0L else it.getLong(KEY_STARTED, 0L)
+    }
+
     /** Polled by the screen: adopts a capture from an earlier process and notices when it ended. */
     fun refresh(context: Context) {
         val app = context.applicationContext
@@ -155,7 +160,7 @@ object DiagnosticsCollector {
         } catch (e: Exception) {
             if (cancelled.get() != session && DiagnosticLog.isActive(session)) {
                 DiagnosticLog.append(session, "[collector error] ${e.stackTraceToString()}")
-                DiagnosticLog.finish(session, "采集失败：${e.message ?: e.javaClass.simpleName}；可导出错误详情")
+                DiagnosticLog.finish(session, "采集失败：${e.message ?: e.javaClass.simpleName}；可导出错误详情", error = true)
             }
         }
     }

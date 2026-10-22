@@ -15,9 +15,14 @@ object DiagnosticLog {
     const val MAX_BYTES = 8 * 1024 * 1024
     /** Kept free after hand-off for the end marker and the stop note. */
     private const val TRAILER_BYTES = 1024
-    @Volatile var status = "尚未开始采集；上次日志可直接导出"
+    /** No session in this process yet; a log from an earlier one may still be on disk. */
+    const val IDLE_STATUS = "尚未开始采集"
+    @Volatile var status = IDLE_STATUS
         private set
     @Volatile var running = false
+        private set
+    /** The last session ended with an error rather than a stop or a limit. */
+    @Volatile var failed = false
         private set
     private var writer: BufferedWriter? = null
     private var file: File? = null
@@ -35,6 +40,7 @@ object DiagnosticLog {
         writer = file.bufferedWriter()
         bytes = 0
         running = true
+        failed = false
         status = "正在请求 Root 权限…"
         return generation
     }
@@ -74,12 +80,13 @@ object DiagnosticLog {
         generation++
         this.file = file
         running = true
+        failed = false
         status = message
         return generation
     }
 
     /** [note] appends [message] to the log; skip it when the root capture already wrote its end marker. */
-    @Synchronized fun finish(token: Long, message: String, note: Boolean = true) {
+    @Synchronized fun finish(token: Long, message: String, note: Boolean = true, error: Boolean = false) {
         if (token != generation || !running) return
         val current = writer
         if (current != null) {
@@ -90,6 +97,7 @@ object DiagnosticLog {
         }
         writer = null
         running = false
+        failed = error
         status = message
     }
 
