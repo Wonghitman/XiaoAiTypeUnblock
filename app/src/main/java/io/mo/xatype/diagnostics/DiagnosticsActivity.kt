@@ -20,6 +20,7 @@ class DiagnosticsActivity : AppCompatActivity() {
     private lateinit var startButton: Button
     private val refresh = object : Runnable {
         override fun run() {
+            DiagnosticsCollector.refresh(this@DiagnosticsActivity)
             statusView.text = DiagnosticLog.status
             startButton.isEnabled = !DiagnosticLog.running
             handler.postDelayed(this, 1000)
@@ -41,7 +42,8 @@ class DiagnosticsActivity : AppCompatActivity() {
                 "2. 切到记事本，先呼出普通键盘，再切悬浮键盘、拖动位置、打开剪贴板；尝试横竖屏切换。\n" +
                 "   如需排查中文输入，在中文模式输入 nihao，尝试中英文切换。\n" +
                 "3. 返回这里，停止采集，再导出分享或保存文件。\n\n" +
-                "会自动重启小爱输入法。最长采集 10 分钟，最多 8 MB；再次开始会覆盖上次日志。\n\n" +
+                "会自动重启小爱输入法。采集由 Root 在后台进行，离开本页也会继续，最长 10 分钟、最多 8 MB；" +
+                "再次开始会覆盖上次日志。\n\n" +
                 "仅收集输入法和模块进程日志、设备与版本信息。输入法原生日志可能包含输入文字，" +
                 "请仅用测试文字复现，不要输入密码或私人内容。\n"
         })
@@ -51,19 +53,14 @@ class DiagnosticsActivity : AppCompatActivity() {
             text = "开始采集并重启输入法"
             setOnClickListener {
                 isEnabled = false
-                statusView.text = "正在启动采集…"
-                try {
-                    startForegroundService(Intent(this@DiagnosticsActivity, DiagnosticsService::class.java))
-                } catch (e: Exception) {
-                    isEnabled = true
-                    showError(e)
-                }
+                DiagnosticsCollector.start(this@DiagnosticsActivity)
+                statusView.text = DiagnosticLog.status
             }
         }
         layout.addView(startButton)
         layout.addView(Button(this).apply {
             text = "停止采集"
-            setOnClickListener { stopService(Intent(this@DiagnosticsActivity, DiagnosticsService::class.java)) }
+            setOnClickListener { DiagnosticsCollector.stop(this@DiagnosticsActivity) }
         })
         layout.addView(Button(this).apply {
             text = "导出分享日志"

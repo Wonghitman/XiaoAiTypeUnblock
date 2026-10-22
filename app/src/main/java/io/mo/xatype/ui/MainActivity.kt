@@ -312,13 +312,11 @@ class MainActivity : AppCompatActivity() {
             }.view
         ))
 
-        if (BuildConfig.INPUT_DIAGNOSTICS) {
-            kit.group(root, "更多", listOf(
-                kit.navRow("平板输入与外观诊断", "采集 / 导出日志", R.drawable.ic_bug) {
-                    startActivity(Intent(this, io.mo.xatype.diagnostics.DiagnosticsActivity::class.java))
-                }
-            ))
-        }
+        kit.group(root, "更多", listOf(
+            kit.navRow("输入法与外观诊断", "采集 / 导出日志", R.drawable.ic_bug) {
+                startActivity(Intent(this, io.mo.xatype.diagnostics.DiagnosticsActivity::class.java))
+            }
+        ))
     }
 
     /** A small card with a count; tapping it opens [tab]. Returns the value view. */

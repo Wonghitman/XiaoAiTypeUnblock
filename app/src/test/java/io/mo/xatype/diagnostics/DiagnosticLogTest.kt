@@ -65,6 +65,34 @@ class DiagnosticLogTest {
         assertEquals(saved, log.readText())
     }
 
+    @Test fun handOffLeavesFileToRootAndStopNoteIsAppended() {
+        val log = temporary.newFile()
+        val token = DiagnosticLog.begin(log)
+        try {
+            DiagnosticLog.append(token, "header")
+            val budget = DiagnosticLog.handOff(token)
+            assertTrue(budget in 1 until DiagnosticLog.MAX_BYTES.toLong())
+            assertTrue(DiagnosticLog.running)
+            assertFalse(DiagnosticLog.append(token, "after hand-off"))
+            assertEquals(-1L, DiagnosticLog.handOff(token))
+            log.appendText("root line\n")
+            DiagnosticLog.finish(token, "stopped")
+            assertTrue(log.readText().startsWith("header\nroot line\n"))
+            assertTrue(log.readText().endsWith("[collector] stopped\n"))
+        } finally { DiagnosticLog.finish(token, "test complete") }
+    }
+
+    @Test fun adoptedCaptureEndingOnItsOwnAddsNoNote() {
+        val log = temporary.newFile()
+        log.writeText("root line\n${RootLogcatScript.END_MARKER}\n")
+        val token = DiagnosticLog.adopt(log, "capturing")
+        assertTrue(DiagnosticLog.isActive(token))
+        DiagnosticLog.finish(token, "ended", note = false)
+        assertFalse(DiagnosticLog.running)
+        assertEquals("ended", DiagnosticLog.status)
+        assertEquals("root line\n${RootLogcatScript.END_MARKER}\n", log.readText())
+    }
+
     @Test(expected = IllegalStateException::class)
     fun missingSessionCannotExportAnEmptySuccessFile() {
         DiagnosticLog.snapshot(File(temporary.root, "missing.txt"), temporary.newFolder())
