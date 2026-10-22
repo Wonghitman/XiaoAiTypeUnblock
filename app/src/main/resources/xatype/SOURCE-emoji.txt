@@ -1,0 +1,14 @@
+Emoji associations: Unicode CLDR 47 / Emoji 16.0 (Unicode-3.0).
+https://github.com/unicode-org/cldr/tree/release-47/common/annotations
+https://github.com/unicode-org/cldr/tree/release-47/common/annotationsDerived
+https://unicode.org/Public/emoji/16.0/emoji-test.txt
+Pinyin: bundled rime-pinyin-simp / AOSP data (Apache-2.0); see assets/keyboard18/SOURCE-pinyin.txt and LICENSE-pinyin.txt.
+Modified: invert Chinese names/keywords; normalize emoji presentation; omit skin-tone variants; add explicit aliases and syllable-separated pinyin for full/Shuangpin matching; deterministic UTF-8 TSV.
+Candidate filtering informed by WindInput (no Rust code or Rime engine bundled).
+https://github.com/huanfeng/WindInput
+Build: python scripts/update-emoji-table.py <source-directory>
+Entries: 5330
+zh.xml: 06b289e1b563199df2e2c51ab93ca8a3780a57a7ee82f4600828936c8323af0d
+zh-derived.xml: ff3f6baa2a6f1a8185b795e982a7712fd9aceed5e6c01cade13bb9f23687840b
+emoji-test.txt: 24f0c534e86cf142e2496953e8f0e46a3e702392911eddcd29c6cced85139697
+pinyin.table: 9740d1e0b7787b08416452f7a454d0a71a93c2b5e61fc61437d7fa7853853d37

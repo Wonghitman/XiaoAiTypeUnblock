@@ -44,10 +44,17 @@ internal object FeatureCatalog {
 
     val t9Shuangpin = Feature(ConfigManager.KEY_T9_SHUANGPIN, "九键双拼", "在拼音九键中使用双拼")
 
+    val emojiCandidates = Feature(ConfigManager.KEY_EMOJI_CANDIDATES, "Emoji 候选增强",
+        "打出关键词时，同时候选相关表情", Detail(
+            "根据当前输入与前几项汉字候选离线匹配表情，保留汉字首选，点选表情直接上屏。",
+            notes = listOf("开启后重启输入法。支持原生全拼及双拼，输入完整关键词时增强。",
+                "每个词最多补充 3 个表情。整句中的部分词、已有选词片段、密码框与独立形码/18 键引擎不增强。")
+        ))
+
     val bottomSpacing = Feature(ConfigManager.KEY_BOTTOM_SPACING_ENABLED, "自定义键盘底部间距",
         "调节按键下方的留白")
 
-    val keyboardFeatures get() = listOf(keyboardShortcuts, keyboardHeight, bottomSpacing, t9Shuangpin)
+    val keyboardFeatures get() = listOf(keyboardShortcuts, emojiCandidates, keyboardHeight, bottomSpacing, t9Shuangpin)
 
     /** Rows of action, nine-key, 26-key and 18-key triggers. */
     private val shortcutKeys = listOf(

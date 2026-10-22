@@ -13,6 +13,7 @@ import io.mo.xatype.hooks.ClipboardSensitiveHook
 import io.mo.xatype.hooks.CloudBlacklistHook
 import io.mo.xatype.hooks.HyperOsVersionHook
 import io.mo.xatype.hooks.InputDiagnosticsHook
+import io.mo.xatype.hooks.EmojiCandidateHook
 import io.mo.xatype.hooks.Keyboard18Hook
 import io.mo.xatype.hooks.KeyboardBottomSpacingHook
 import io.mo.xatype.hooks.KeyboardHeightUnblockHook
@@ -129,6 +130,13 @@ class XiaoAiTypeModule : XposedModule() {
         } catch (t: Throwable) {
             HostSymbols.markUnavailable(HostSymbols.T9_SHUANGPIN_INIT, t)
             XposedUtils.logError(this, "Nine-key ShuangPin unavailable for this host ABI", t)
+        }
+
+        try {
+            EmojiCandidateHook.install(this, classLoader)
+        } catch (t: Throwable) {
+            HostSymbols.markUnavailable(HostSymbols.KEYBOARD_EMOJI, t)
+            XposedUtils.logError(this, "Emoji candidates unavailable for this host ABI", t)
         }
 
         if (BuildConfig.INPUT_DIAGNOSTICS) {

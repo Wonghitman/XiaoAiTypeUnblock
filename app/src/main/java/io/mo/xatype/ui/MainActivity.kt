@@ -442,7 +442,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun buildKeyboard(root: LinearLayout) {
         // Key shortcuts are independent of experimental keyboards and appearance.
-        kit.group(root, "输入增强", listOf(featureSwitch(FeatureCatalog.keyboardShortcuts).view), first = true)
+        kit.group(root, "输入增强", listOf(
+            featureSwitch(FeatureCatalog.keyboardShortcuts).view,
+            featureSwitch(FeatureCatalog.emojiCandidates).view
+        ), first = true)
 
         kit.group(root, "尺寸与布局", listOf(
             featureSwitch(FeatureCatalog.keyboardHeight).view,
