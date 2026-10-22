@@ -54,12 +54,9 @@ object AiAbilityUnlockHook {
                     val original = chain.proceed()
                     if (original == true) return@intercept true
 
-                    if (ConfigManager.isVerboseLogEnabled()) {
-                        XposedUtils.log(
-                            module,
-                            "[AI Ability] AIDetail.$methodName() ${describe(chain.thisObject)} " +
-                                "false -> true (keyboard gate lifted; execution still depends on AI service)"
-                        )
+                    XposedUtils.logDebug(module) {
+                        "[AI Ability] AIDetail.$methodName() ${describe(chain.thisObject)} " +
+                            "false -> true (keyboard gate lifted; execution still depends on AI service)"
                     }
                     true
                 }

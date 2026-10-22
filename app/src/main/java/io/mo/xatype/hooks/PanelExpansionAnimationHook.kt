@@ -50,9 +50,7 @@ object PanelExpansionAnimationHook {
                     capturedAnimation.get(owner) === chain.thisObject &&
                     state.getInt(owner) in 1..2
                 ) {
-                    if (ConfigManager.isVerboseLogEnabled()) {
-                        XposedUtils.log(module, "PanelExpansionAnimationHook: spring label=${state.getInt(owner)}")
-                    }
+                    XposedUtils.logDebug(module) { "PanelExpansionAnimationHook: spring label=${state.getInt(owner)}" }
                     animateTo.invoke(null, chain.thisObject, chain.getArg(0), spring, null, owner, 12)
                 } else {
                     chain.proceed()

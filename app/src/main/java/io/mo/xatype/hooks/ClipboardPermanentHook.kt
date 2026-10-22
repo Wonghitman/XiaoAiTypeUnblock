@@ -228,7 +228,7 @@ object ClipboardPermanentHook {
 
     private fun installPhraseContextLoaderHook(module: XposedInterface, classLoader: ClassLoader) {
         if (!phraseContextLoaderHookInstalled.compareAndSet(false, true)) return
-        val serviceClass = XposedUtils.findClass(IME_SERVICE_CLASS, classLoader) ?: return
+        val serviceClass = XposedUtils.findClass(IME_SERVICE_CLASS, classLoader) ?: return XposedUtils.logWarn(module, "[Permanent Clipboard] $IME_SERVICE_CLASS not found; phrase context loader hook skipped")
         serviceClass.declaredMethods
             .filter { it.name == "onCreate" && it.parameterTypes.isEmpty() }
             .forEach { method ->
@@ -341,7 +341,7 @@ object ClipboardPermanentHook {
     ) {
         val method = managerClass.declaredMethods.firstOrNull {
             it.name == "getNoExpiredClipboardData" && it.parameterTypes.size == 3
-        } ?: return
+        } ?: return XposedUtils.logWarn(module, "[Permanent Clipboard] getNoExpiredClipboardData not found; read hook skipped")
         method.isAccessible = true
         module.hook(method).intercept { chain ->
             refreshConfig(chain.getArg(0) as? Context)
@@ -370,7 +370,7 @@ object ClipboardPermanentHook {
             it.name == "getClipboardData" && it.parameterTypes.contentEquals(
                 arrayOf(Context::class.java)
             )
-        } ?: return
+        } ?: return XposedUtils.logWarn(module, "[Permanent Clipboard] getClipboardData(Context) not found; public read hook skipped")
         method.isAccessible = true
         module.hook(method).intercept { chain ->
             val context = chain.getArg(0) as? Context ?: return@intercept chain.proceed()
@@ -404,7 +404,7 @@ object ClipboardPermanentHook {
             it.name == "addClipDataToPhrase" && it.parameterTypes.size == 3 &&
                 it.parameterTypes[0] == Context::class.java &&
                 it.parameterTypes[1] == Boolean::class.javaPrimitiveType
-        } ?: return
+        } ?: return XposedUtils.logWarn(module, "[Permanent Clipboard] addClipDataToPhrase not found; outbound save hook skipped")
         method.isAccessible = true
         module.hook(method).intercept { chain ->
             val context = chain.getArg(0) as? Context ?: return@intercept chain.proceed()
@@ -451,7 +451,7 @@ object ClipboardPermanentHook {
             it.name == "setClipboardModelList" && it.parameterTypes.size == 2 &&
                 it.parameterTypes[0] == Context::class.java &&
                 List::class.java.isAssignableFrom(it.parameterTypes[1])
-        } ?: return
+        } ?: return XposedUtils.logWarn(module, "[Permanent Clipboard] setClipboardModelList not found; display list hook skipped")
         method.isAccessible = true
         module.hook(method).intercept { chain ->
             val context = chain.getArg(0) as? Context ?: return@intercept chain.proceed()
@@ -494,7 +494,7 @@ object ClipboardPermanentHook {
     ) {
         val method = managerClass.declaredMethods.firstOrNull {
             it.name == "addContentListToJsonArray" && it.parameterTypes.size == 4
-        } ?: return
+        } ?: return XposedUtils.logWarn(module, "[Permanent Clipboard] addContentListToJsonArray not found; merge hook skipped")
         method.isAccessible = true
         module.hook(method).intercept { chain ->
             if (!ConfigManager.isClipboardPermanentEnabled()) return@intercept chain.proceed()
@@ -539,7 +539,7 @@ object ClipboardPermanentHook {
                         "java.lang.String"
                     )
             }
-            ?: return
+            ?: return XposedUtils.logWarn(module, "[Permanent Clipboard] storage write method not found; provider write hook skipped")
         method.isAccessible = true
         module.hook(method).intercept { chain ->
             refreshConfig(chain.getArg(0) as? Context)
@@ -566,7 +566,7 @@ object ClipboardPermanentHook {
     }
 
     private fun installPopupHooks(module: XposedInterface, classLoader: ClassLoader) {
-        val popupClass = XposedUtils.findClass(POPUP_CLASS, classLoader) ?: return
+        val popupClass = XposedUtils.findClass(POPUP_CLASS, classLoader) ?: return XposedUtils.logWarn(module, "[Permanent Clipboard] $POPUP_CLASS not found; popup hooks skipped")
         fun legacy(name: String, paramCount: Int) = popupClass.declaredMethods.firstOrNull {
             it.name == name && it.parameterTypes.size == paramCount
         }
@@ -597,7 +597,7 @@ object ClipboardPermanentHook {
     }
 
     private fun installHeaderHook(module: XposedInterface, classLoader: ClassLoader) {
-        val adapterClass = XposedUtils.findClass(HEADER_ADAPTER_CLASS, classLoader) ?: return
+        val adapterClass = XposedUtils.findClass(HEADER_ADAPTER_CLASS, classLoader) ?: return XposedUtils.logWarn(module, "[Permanent Clipboard] $HEADER_ADAPTER_CLASS not found; header hook skipped")
         adapterClass.declaredMethods
             .filter { it.name == "onBindViewHolder" && it.parameterTypes.size == 2 }
             .forEach { method ->
@@ -656,7 +656,7 @@ object ClipboardPermanentHook {
     ) {
         val taskClass = PhraseSymbols.clazz(PhraseSymbols.POPUP_INIT_TASK)
             ?: XposedUtils.findClass(POPUP_INIT_TASK_CLASS, classLoader)
-            ?: return
+            ?: return XposedUtils.logWarn(module, "[Permanent Clipboard] popup init task not found; popup init hook skipped")
         taskClass.declaredMethods
             .filter { it.name == "run" && it.parameterTypes.isEmpty() }
             .forEach { method ->
@@ -711,11 +711,11 @@ object ClipboardPermanentHook {
     ) {
         val method = PhraseSymbols.method(PhraseSymbols.STORAGE_ENTRY)
             ?: legacyStorageEntries(classLoader).firstOrNull()
-            ?: return
+            ?: return XposedUtils.logWarn(module, "[Permanent Clipboard] storage entry not found; provider entry hook skipped")
         val modelClass = XposedUtils.findClass(
             "com.miui.inputmethod.ClipboardContentModel",
             classLoader
-        ) ?: return
+        ) ?: return XposedUtils.logWarn(module, "[Permanent Clipboard] ClipboardContentModel not found; provider entry hook skipped")
         val fromJson = modelClass.getMethod("fromJSONObject", JSONObject::class.java)
         method.isAccessible = true
         module.hook(method).intercept { chain ->
@@ -752,11 +752,11 @@ object ClipboardPermanentHook {
         classLoader: ClassLoader,
         managerClass: Class<*>
     ) {
-        val providerClass = XposedUtils.findClass(PROVIDER_CLASS, classLoader) ?: return
+        val providerClass = XposedUtils.findClass(PROVIDER_CLASS, classLoader) ?: return XposedUtils.logWarn(module, "[Permanent Clipboard] $PROVIDER_CLASS not found; provider call hook skipped")
         val modelClass = XposedUtils.findClass(
             "com.miui.inputmethod.ClipboardContentModel",
             classLoader
-        ) ?: return
+        ) ?: return XposedUtils.logWarn(module, "[Permanent Clipboard] ClipboardContentModel not found; provider call hook skipped")
         val fromJson = modelClass.getMethod("fromJSONObject", JSONObject::class.java)
         providerClass.declaredMethods
             .filter {

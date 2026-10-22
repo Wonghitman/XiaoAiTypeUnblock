@@ -220,10 +220,10 @@ internal class CompositorGlassSurface(
             trackDynamicGlassGeometry(module, service, material)
             val geometry = GlassGeometry(location[0], location[1], material.width,
                 material.height, decor.height, material.isShown)
-            if (geometry != dynamicGlassGeometry && ConfigManager.isVerboseLogEnabled()) {
-                XposedUtils.log(module, "[BottomDiag] glass Surface geometry " +
+            if (geometry != dynamicGlassGeometry) XposedUtils.logDebug(module) {
+                "[BottomDiag] glass Surface geometry " +
                     "bounds=${material.width}x${material.height}@${location[0]},${location[1]} " +
-                    "shown=${material.isShown} drawSync=$syncWithDraw")
+                    "shown=${material.isShown} drawSync=$syncWithDraw"
             }
             dynamicGlassGeometry = geometry
             (transaction as? AutoCloseable)?.close()
@@ -236,9 +236,7 @@ internal class CompositorGlassSurface(
     }
 
     private fun skip(module: XposedModule, reason: String): Boolean {
-        if (ConfigManager.isVerboseLogEnabled()) {
-            XposedUtils.log(module, "[BottomDiag] glass Surface skipped: $reason")
-        }
+        XposedUtils.logDebug(module) { "[BottomDiag] glass Surface skipped: $reason" }
         return false
     }
 

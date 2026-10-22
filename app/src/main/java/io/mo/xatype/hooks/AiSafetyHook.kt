@@ -45,12 +45,7 @@ object AiSafetyHook {
                     val sanitized = sanitizeJson(originalJson)
 
                     if (sanitized != originalJson) {
-                        if (ConfigManager.isVerboseLogEnabled()) {
-                            XposedUtils.log(
-                                module,
-                                "[AI Safety] Sanitized safety_blocked in $label()"
-                            )
-                        }
+                        XposedUtils.logDebug(module) { "[AI Safety] Sanitized safety_blocked in $label()" }
                         chain.proceed(arrayOf(sanitized))
                     } else {
                         chain.proceed()

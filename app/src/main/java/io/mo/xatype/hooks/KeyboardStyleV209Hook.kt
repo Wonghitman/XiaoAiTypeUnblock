@@ -198,7 +198,7 @@ object KeyboardStyleV209Hook
 
     private fun installHyperMaterialHooks(module: XposedModule, classLoader: ClassLoader)
     {
-        val helperClass = XposedUtils.findClass(profile.helperClassName, classLoader) ?: return
+        val helperClass = XposedUtils.findClass(profile.helperClassName, classLoader) ?: return XposedUtils.logWarn(module, "KeyboardStyleV209Hook: ${profile.helperClassName} not found; hyper material hooks skipped")
 
         listOf(profile.helperDetachMethod, profile.materialCleanupMethod).forEach { methodName ->
             helperClass.declaredMethods.firstOrNull {
@@ -388,12 +388,12 @@ object KeyboardStyleV209Hook
 
     private fun installPaletteHook(module: XposedModule, classLoader: ClassLoader)
     {
-        val paletteFactory = XposedUtils.findClass(profile.paletteFactoryClassName, classLoader) ?: return
+        val paletteFactory = XposedUtils.findClass(profile.paletteFactoryClassName, classLoader) ?: return XposedUtils.logWarn(module, "KeyboardStyleV209Hook: ${profile.paletteFactoryClassName} not found; palette hook skipped")
         val method = paletteFactory.declaredMethods.firstOrNull {
             it.name == profile.paletteFactoryMethod &&
                 it.parameterTypes.size == 1 &&
                 it.returnType.name == profile.paletteClassName
-        } ?: return
+        } ?: return XposedUtils.logWarn(module, "KeyboardStyleV209Hook: palette factory method not found; palette hook skipped")
 
         method.isAccessible = true
 
@@ -946,13 +946,7 @@ object KeyboardStyleV209Hook
                 styleClipboardViewTree(root)
                 AppearanceDiagnostics.record(module, service, "clipboard-popup", inside, surface.owns(inside))
 
-                if (ConfigManager.isVerboseLogEnabled())
-                {
-                    XposedUtils.log(
-                        module,
-                        "KeyboardStyleV209Hook: clipboard panel synchronized"
-                    )
-                }
+                XposedUtils.logDebug(module) { "KeyboardStyleV209Hook: clipboard panel synchronized" }
             }
             catch (t: Throwable)
             {
@@ -1964,17 +1958,13 @@ object KeyboardStyleV209Hook
                 roundBottom = isPopupMaterial(service, material)
             )
 
-            if (ConfigManager.isVerboseLogEnabled())
-            {
-                XposedUtils.log(
-                    module,
-                    "KeyboardStyleV209Hook: material refreshed, type=" +
-                        ConfigManager.getBgType() +
-                        ", opacity=" +
-                        ConfigManager.getOpacity() +
-                        ", blur=" +
-                        ConfigManager.getBlurRadius()
-                )
+            XposedUtils.logDebug(module) {
+                "KeyboardStyleV209Hook: material refreshed, type=" +
+                    ConfigManager.getBgType() +
+                    ", opacity=" +
+                    ConfigManager.getOpacity() +
+                    ", blur=" +
+                    ConfigManager.getBlurRadius()
             }
         }
         catch (t: Throwable)

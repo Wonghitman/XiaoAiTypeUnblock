@@ -22,9 +22,7 @@ object ClipboardSensitiveHook {
                     if (!ConfigManager.isClipboardSensitiveEnabled()) return@intercept chain.proceed()
                     val key = chain.getArg(0) as? String
                     if ("android.content.extra.IS_SENSITIVE" == key) {
-                        if (ConfigManager.isVerboseLogEnabled()) {
-                            XposedUtils.log(module, "[Clipboard] Bypassed android.content.extra.IS_SENSITIVE check in PersistableBundle")
-                        }
+                        XposedUtils.logDebug(module) { "[Clipboard] Bypassed android.content.extra.IS_SENSITIVE check in PersistableBundle" }
                         false // Never mark as sensitive
                     } else {
                         chain.proceed()
@@ -49,9 +47,7 @@ object ClipboardSensitiveHook {
                     if (!ConfigManager.isClipboardSensitiveEnabled()) return@intercept chain.proceed()
                     val key = chain.getArg(0) as? String
                     if ("android.content.extra.IS_SENSITIVE" == key) {
-                        if (ConfigManager.isVerboseLogEnabled()) {
-                            XposedUtils.log(module, "[Clipboard] Bypassed android.content.extra.IS_SENSITIVE check in BaseBundle")
-                        }
+                        XposedUtils.logDebug(module) { "[Clipboard] Bypassed android.content.extra.IS_SENSITIVE check in BaseBundle" }
                         false
                     } else {
                         chain.proceed()

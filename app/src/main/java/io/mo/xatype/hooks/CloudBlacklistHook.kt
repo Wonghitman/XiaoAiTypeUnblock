@@ -26,9 +26,7 @@ object CloudBlacklistHook {
                         if (!ConfigManager.isCloudBlacklistEnabled()) return@intercept chain.proceed()
                         val blacklistStr = chain.getArg(1) as? String
                         if (!blacklistStr.isNullOrEmpty()) {
-                            if (ConfigManager.isVerboseLogEnabled()) {
-                                XposedUtils.log(module, "[Cloud Blacklist] Intercepted and cleared cloud blacklist (len=${blacklistStr.length}) in c1.onPyCloudAttachUpdate")
-                            }
+                            XposedUtils.logDebug(module) { "[Cloud Blacklist] Intercepted and cleared cloud blacklist (len=${blacklistStr.length}) in c1.onPyCloudAttachUpdate" }
                         }
                         // Replace blacklist string and version with empty strings
                         chain.proceed(arrayOf(chain.getArg(0), "", "", chain.getArg(3), chain.getArg(4)))

@@ -168,9 +168,7 @@ object HyperOsVersionHook {
     private fun logPropertyMock(module: XposedInterface, key: String, mockVal: String) {
         if (!hasLoggedSysProp) {
             hasLoggedSysProp = true
-            if (ConfigManager.isVerboseLogEnabled()) {
-                XposedUtils.log(module, "[HyperOS Unblock] SystemProperties.$key -> mock '$mockVal'")
-            }
+            XposedUtils.logDebug(module) { "[HyperOS Unblock] SystemProperties.$key -> mock '$mockVal'" }
         }
     }
 
@@ -187,9 +185,7 @@ object HyperOsVersionHook {
                     field.isAccessible = true
                     val oldVal = field.getBoolean(null)
                     field.setBoolean(null, false)
-                    if (ConfigManager.isVerboseLogEnabled()) {
-                        XposedUtils.log(module, "[HyperOS Unblock] Patched ${gateClass.name}.${field.name} from $oldVal to false")
-                    }
+                    XposedUtils.logDebug(module) { "[HyperOS Unblock] Patched ${gateClass.name}.${field.name} from $oldVal to false" }
                 }
             }
         } catch (t: Throwable) {
@@ -209,9 +205,7 @@ object HyperOsVersionHook {
                 try {
                     module.hook(methodIsOS4).intercept { chain ->
                         if (!ConfigManager.isOsVersionUnblockEnabled()) return@intercept chain.proceed()
-                        if (ConfigManager.isVerboseLogEnabled()) {
-                            XposedUtils.log(module, "[HyperOS Unblock] AIVersion.isOS4Service() -> true")
-                        }
+                        XposedUtils.logDebug(module) { "[HyperOS Unblock] AIVersion.isOS4Service() -> true" }
                         true
                     }
                     XposedUtils.log(module, "[HyperOS Unblock] Hooked AIVersion.isOS4Service(Context)")
@@ -226,9 +220,7 @@ object HyperOsVersionHook {
                 try {
                     module.hook(methodIsSupport).intercept { chain ->
                         if (!ConfigManager.isOsVersionUnblockEnabled()) return@intercept chain.proceed()
-                        if (ConfigManager.isVerboseLogEnabled()) {
-                            XposedUtils.log(module, "[HyperOS Unblock] AIVersion.isServiceSupport() -> true")
-                        }
+                        XposedUtils.logDebug(module) { "[HyperOS Unblock] AIVersion.isServiceSupport() -> true" }
                         true
                     }
                     XposedUtils.log(module, "[HyperOS Unblock] Hooked AIVersion.isServiceSupport(Context)")
@@ -336,9 +328,7 @@ object HyperOsVersionHook {
                         val activity = chain.getThisObject() as? Activity
                         val dialogType = activity?.intent?.getStringExtra("dialog_type")
                         if ("OS_VERSION_UNSUPPORTED" == dialogType) {
-                            if (ConfigManager.isVerboseLogEnabled()) {
-                                XposedUtils.log(module, "[HyperOS Unblock] Suppressed OS_VERSION_UNSUPPORTED DialogHostActivity")
-                            }
+                            XposedUtils.logDebug(module) { "[HyperOS Unblock] Suppressed OS_VERSION_UNSUPPORTED DialogHostActivity" }
                             activity.finish()
                             return@intercept null
                         }

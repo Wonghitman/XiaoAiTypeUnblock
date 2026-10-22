@@ -4,6 +4,7 @@ import android.util.Log
 import io.github.libxposed.api.XposedInterface
 import io.mo.xatype.BuildConfig
 import io.mo.xatype.compat.AdaptationStatus
+import io.mo.xatype.config.ConfigManager
 import java.lang.reflect.Executable
 import java.lang.reflect.Method
 
@@ -13,6 +14,16 @@ object XposedUtils {
     fun log(module: XposedInterface, msg: String) {
         module.log(Log.INFO, TAG, msg)
         Log.i(TAG, msg)
+    }
+
+    /** Only with the verbose-log switch on; [msg] is not built otherwise, so hot paths stay cheap. */
+    inline fun logDebug(module: XposedInterface, msg: () -> String) {
+        if (ConfigManager.isVerboseLogEnabled()) logDebug(module, msg())
+    }
+
+    @PublishedApi internal fun logDebug(module: XposedInterface, msg: String) {
+        module.log(Log.DEBUG, TAG, msg)
+        Log.d(TAG, msg)
     }
 
     fun logWarn(module: XposedInterface, msg: String) {

@@ -15,7 +15,6 @@ import android.graphics.drawable.LayerDrawable
 import android.graphics.drawable.StateListDrawable
 import android.net.Uri
 import android.os.SystemClock
-import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
@@ -615,15 +614,12 @@ object KeyboardStyleHook {
                 if (staticSMethod != null) {
                     module.hook(staticSMethod).intercept { chain ->
                         if (ConfigManager.isStyleEnabled()) {
-                            if (ConfigManager.isVerboseLogEnabled()) {
-                                XposedUtils.log(
-                                    module,
-                                    "[BottomDiag] bb.g1.s requested=${colorHex(chain.getArg(0) as? Int ?: 0)} " +
-                                        "icon=${colorHex(chain.getArg(1) as? Int ?: 0)} " +
-                                        "ripple=${colorHex(chain.getArg(2) as? Int ?: 0)} " +
-                                        "custom=${chain.getArg(3)} configured=${colorHex(activeSteadyBottomBarColor)} " +
-                                        "pluginBefore=${readPluginBottomSnapshot()}"
-                                )
+                            XposedUtils.logDebug(module) {
+                                "[BottomDiag] bb.g1.s requested=${colorHex(chain.getArg(0) as? Int ?: 0)} " +
+                                    "icon=${colorHex(chain.getArg(1) as? Int ?: 0)} " +
+                                    "ripple=${colorHex(chain.getArg(2) as? Int ?: 0)} " +
+                                    "custom=${chain.getArg(3)} configured=${colorHex(activeSteadyBottomBarColor)} " +
+                                    "pluginBefore=${readPluginBottomSnapshot()}"
                             }
                             val iconColor = chain.getArg(1) as? Int ?: 0
                             val rippleColor = chain.getArg(2) as? Int ?: 0
@@ -640,12 +636,7 @@ object KeyboardStyleHook {
                                     customizeMethod.invoke(null, true, activeSteadyBottomBarColor, iconColor, rippleColor)
                                 }
                             } catch (_: Throwable) {}
-                            if (ConfigManager.isVerboseLogEnabled()) {
-                                XposedUtils.log(
-                                    module,
-                                    "[BottomDiag] bb.g1.s pluginAfter=${readPluginBottomSnapshot()}"
-                                )
-                            }
+                            XposedUtils.logDebug(module) { "[BottomDiag] bb.g1.s pluginAfter=${readPluginBottomSnapshot()}" }
                             null
                         } else {
                             chain.proceed()
@@ -681,7 +672,7 @@ object KeyboardStyleHook {
                     prepareDynamicGlassBeforeShow(module, service)
                     surfaceHoldGeneration = armDynamicGlassWindowForFirstCommit(module, service)
                     logBottomSnapshot(module, service, sequence, "show:enter")
-                    synchronizeBottomBarBeforeTransition(service)
+                    synchronizeBottomBarBeforeTransition(module, service)
                     logBottomSnapshot(module, service, sequence, "show:after-pre-sync")
                 }
                 val result = chain.proceed()
@@ -691,7 +682,7 @@ object KeyboardStyleHook {
                     }
                     beginBottomTransitionGuard(hideMaterial = false)
                     logBottomSnapshot(module, service, sequence, "show:after-native")
-                    synchronizeBottomBarBeforeTransition(service)
+                    synchronizeBottomBarBeforeTransition(module, service)
                     logBottomSnapshot(module, service, sequence, "show:exit")
                     scheduleBottomSnapshots(module, service, sequence, "show")
                 }
@@ -705,14 +696,14 @@ object KeyboardStyleHook {
                 if (service != null) {
                     beginBottomTransitionGuard(hideMaterial = true)
                     logBottomSnapshot(module, service, sequence, "hide:enter")
-                    synchronizeBottomBarBeforeTransition(service)
+                    synchronizeBottomBarBeforeTransition(module, service)
                     logBottomSnapshot(module, service, sequence, "hide:after-pre-sync")
                 }
                 val result = chain.proceed()
                 if (service != null) {
                     beginBottomTransitionGuard(hideMaterial = true)
                     logBottomSnapshot(module, service, sequence, "hide:after-native")
-                    synchronizeBottomBarBeforeTransition(service)
+                    synchronizeBottomBarBeforeTransition(module, service)
                     logBottomSnapshot(module, service, sequence, "hide:exit")
                     scheduleBottomSnapshots(module, service, sequence, "hide")
                 }
@@ -744,9 +735,9 @@ object KeyboardStyleHook {
         // cleanup targets helper.h/i rather than the supplied popup view.
         val keyboardMaterial = XposedUtils.getObjectField(helper, "h") as? View
         if (material == null || material !== keyboardMaterial) {
-            if (material != null && ConfigManager.isVerboseLogEnabled()) {
-                XposedUtils.log(module, "[BottomDiag] compositor skipped non-keyboard material " +
-                    "size=${material.width}x${material.height}")
+            if (material != null) XposedUtils.logDebug(module) {
+                "[BottomDiag] compositor skipped non-keyboard material " +
+                    "size=${material.width}x${material.height}"
             }
             return
         }
@@ -824,6 +815,7 @@ object KeyboardStyleHook {
                 decor.postDelayed(
                     {
                         restoreDynamicGlassWindowHold(
+                            module,
                             service,
                             generation,
                             "visible-frame-commit+34ms"
@@ -835,12 +827,13 @@ object KeyboardStyleHook {
             decor.postInvalidateOnAnimation()
         } catch (_: Throwable) {}
         decor.postDelayed(
-            { restoreDynamicGlassWindowHold(service, generation, "fallback") },
+            { restoreDynamicGlassWindowHold(module, service, generation, "fallback") },
             200L
         )
     }
 
     private fun restoreDynamicGlassWindowHold(
+        module: XposedModule,
         service: android.inputmethodservice.InputMethodService,
         generation: Int,
         reason: String
@@ -851,8 +844,8 @@ object KeyboardStyleHook {
         releaseDynamicGlassHeldContent(service)
         dynamicGlassSurfaceHoldGeneration.compareAndSet(generation, generation + 1)
         if (dynamicGlassSurfaceHoldDiagnosticCount.getAndIncrement() < 8) {
-            Log.i(
-                "XiaoAiTypeUnblock",
+            XposedUtils.log(
+                module,
                 "[BottomDiag] dynamic glass IME content restored reason=$reason gen=$generation"
             )
         }
@@ -937,12 +930,13 @@ object KeyboardStyleHook {
     }
 
     private fun synchronizeBottomBarBeforeTransition(
+        module: XposedModule,
         service: android.inputmethodservice.InputMethodService
     ) {
         ConfigManager.syncFromProvider(service)
         if (!ConfigManager.isStyleEnabled()) return
         applyBottomBarAppearanceImmediately(service)
-        applyImeToolbarTransitionGuard(service)
+        applyImeToolbarTransitionGuard(module, service)
     }
 
     /**
@@ -1017,6 +1011,7 @@ object KeyboardStyleHook {
      * large white curtain seen in earlier builds.
      */
     private fun applyImeToolbarTransitionGuard(
+        module: XposedModule,
         service: android.inputmethodservice.InputMethodService
     ) {
         if (
@@ -1036,8 +1031,8 @@ object KeyboardStyleHook {
         material?.visibility = View.INVISIBLE
         rim?.visibility = View.INVISIBLE
         if (toolbarDiagCount.getAndIncrement() < 2) {
-            Log.i(
-                "XiaoAiTypeUnblock",
+            XposedUtils.log(
+                module,
                 "[BottomDiag][ToolbarGuard] target=${viewSnapshot(target)} " +
                     "contentTop=$contentTop transparent=true material=${viewSnapshot(material)} " +
                     "tree=${compactViewTree(root)}"
@@ -1192,14 +1187,11 @@ object KeyboardStyleHook {
                 val requestedMask = chain.getArg(1) as? Int ?: 0
                 val guardedAppearance = requestedAppearance and NAV_BAR_BACKGROUND_APPEARANCE_MASK.inv()
                 val guardedMask = requestedMask or NAV_BAR_BACKGROUND_APPEARANCE_MASK
-                if (ConfigManager.isVerboseLogEnabled()) {
-                    XposedUtils.log(
-                        module,
-                        "[BottomDiag] bars-appearance requested=0x${requestedAppearance.toUInt().toString(16)} " +
-                            "mask=0x${requestedMask.toUInt().toString(16)} guarded=" +
-                            "0x${guardedAppearance.toUInt().toString(16)}/" +
-                            "0x${guardedMask.toUInt().toString(16)}"
-                    )
+                XposedUtils.logDebug(module) {
+                    "[BottomDiag] bars-appearance requested=0x${requestedAppearance.toUInt().toString(16)} " +
+                        "mask=0x${requestedMask.toUInt().toString(16)} guarded=" +
+                        "0x${guardedAppearance.toUInt().toString(16)}/" +
+                        "0x${guardedMask.toUInt().toString(16)}"
                 }
                 chain.proceed(arrayOf(guardedAppearance, guardedMask))
             }
@@ -1286,7 +1278,7 @@ object KeyboardStyleHook {
     ) {
         val decor = service.window?.window?.decorView ?: return
         longArrayOf(0L, 16L, 50L, 100L, 200L, 350L).forEach { delay ->
-            decor.postDelayed({ applyImeToolbarTransitionGuard(service) }, delay)
+            decor.postDelayed({ applyImeToolbarTransitionGuard(module, service) }, delay)
         }
         if (ConfigManager.isVerboseLogEnabled()) {
             longArrayOf(0L, 16L, 50L, 100L, 200L, 350L, 500L).forEach { delay ->
@@ -1669,12 +1661,7 @@ object KeyboardStyleHook {
 
                 applyTopCornerOutline(inside, radiusPx)
                 styleClipboardViewTree(root)
-                if (ConfigManager.isVerboseLogEnabled()) {
-                    XposedUtils.log(
-                        module,
-                        "KeyboardStyleHook: clipboard panel synchronized with keyboard background"
-                    )
-                }
+                XposedUtils.logDebug(module) { "KeyboardStyleHook: clipboard panel synchronized with keyboard background" }
             } catch (t: Throwable) {
                 XposedUtils.logError(module, "KeyboardStyleHook: clipboard panel styling failed", t)
             }
@@ -2374,12 +2361,7 @@ object KeyboardStyleHook {
                             opacity < 100
                         f3500h.visibility = if (guarded) View.INVISIBLE else View.VISIBLE
 
-                        if (ConfigManager.isVerboseLogEnabled()) {
-                            XposedUtils.log(
-                                module,
-                                "KeyboardStyleHook: glass tokenUpdated=$tokenUpdated, materialApplied=$materialApplied, blur=${blurRadiusDp}dp"
-                            )
-                        }
+                        XposedUtils.logDebug(module) { "KeyboardStyleHook: glass tokenUpdated=$tokenUpdated, materialApplied=$materialApplied, blur=${blurRadiusDp}dp" }
 
                         // Update f3501i (RuntimeShader Rim Light & Shadow)
                         if (f3501i != null) {
@@ -2660,7 +2642,7 @@ object KeyboardStyleHook {
                         }
                     } else null
                 } else null
-                applyImeToolbarTransitionGuard(service)
+                applyImeToolbarTransitionGuard(module, service)
 
                 // Keep the first raw-transparent IME buffer hidden. The hold is
                 // cleared immediately after the first blur-bearing frame commits.

@@ -40,12 +40,9 @@ object VoiceModerationHook {
 
                 val code = chain.getArg(2) as? String
                 if ("CONTENT_MODERATION" == code) {
-                    if (ConfigManager.isVerboseLogEnabled()) {
-                        XposedUtils.log(
-                            module,
-                            "[Voice Moderation] Suppressed Miclaw " +
-                                "CONTENT_MODERATION toast/error"
-                        )
+                    XposedUtils.logDebug(module) {
+                        "[Voice Moderation] Suppressed Miclaw " +
+                            "CONTENT_MODERATION toast/error"
                     }
                     null
                 } else {
@@ -101,12 +98,9 @@ object VoiceModerationHook {
                     (chain.getArg(0) as? Number)?.toInt() ?: 0
 
                 if (errorCode == 30002) {
-                    if (ConfigManager.isVerboseLogEnabled()) {
-                        XposedUtils.log(
-                            module,
-                            "[Voice Moderation] Intercepted error 30002 " +
-                                "in $label()"
-                        )
+                    XposedUtils.logDebug(module) {
+                        "[Voice Moderation] Intercepted error 30002 " +
+                            "in $label()"
                     }
                     chain.proceed(
                         arrayOf(
@@ -152,12 +146,9 @@ object VoiceModerationHook {
 
                 val bundle = chain.getArg(0) as? Bundle
                 if (bundle?.getInt("code", -1) == 30002) {
-                    if (ConfigManager.isVerboseLogEnabled()) {
-                        XposedUtils.log(
-                            module,
-                            "[Voice Moderation] Suppressed ASR error " +
-                                "30002 callback in $label()"
-                        )
+                    XposedUtils.logDebug(module) {
+                        "[Voice Moderation] Suppressed ASR error " +
+                            "30002 callback in $label()"
                     }
                     return@intercept null
                 }
