@@ -21,6 +21,7 @@ object ConfigManager {
     const val KEY_KEYBOARD_HEIGHT_UNBLOCK = "pref_keyboard_height_unblock"
     const val KEY_KEYBOARD_SHORTCUTS = "pref_keyboard_shortcuts"
     const val KEY_T9_SHUANGPIN = "pref_t9_shuangpin"
+    const val KEY_EMOJI_CANDIDATES = "pref_emoji_candidates"
     const val KEY_T9_SHUANGPIN_SCHEME = "pref_t9_shuangpin_scheme"
     const val KEY_BOTTOM_SPACING_ENABLED = "pref_bottom_spacing_enabled"
     const val KEY_BOTTOM_SPACING = "pref_bottom_spacing" // 0 to 100 dp; global geometry
@@ -67,6 +68,7 @@ object ConfigManager {
     @Volatile private var cachedKeyboardHeightUnblock = false
     @Volatile private var cachedKeyboardShortcuts = false
     @Volatile private var cachedT9Shuangpin = false
+    @Volatile private var cachedEmojiCandidates = false
     @Volatile private var cachedT9ShuangpinScheme = "XIAOHE"
     @Volatile private var cachedBottomSpacingEnabled = false
     @Volatile private var cachedBottomSpacing = 0
@@ -124,6 +126,7 @@ object ConfigManager {
                 cachedKeyboardHeightUnblock = bundle.getBoolean(KEY_KEYBOARD_HEIGHT_UNBLOCK, false)
                 cachedKeyboardShortcuts = bundle.getBoolean(KEY_KEYBOARD_SHORTCUTS, false)
                 cachedT9Shuangpin = bundle.getBoolean(KEY_T9_SHUANGPIN, false)
+                cachedEmojiCandidates = bundle.getBoolean(KEY_EMOJI_CANDIDATES, false)
                 cachedT9ShuangpinScheme = bundle.getString(KEY_T9_SHUANGPIN_SCHEME, "XIAOHE") ?: "XIAOHE"
                 cachedBottomSpacingEnabled = bundle.getBoolean(KEY_BOTTOM_SPACING_ENABLED, false)
                 cachedBottomSpacing = bundle.getInt(KEY_BOTTOM_SPACING, 0).coerceIn(0, 100)
@@ -217,6 +220,11 @@ object ConfigManager {
     fun isT9ShuangpinEnabled(): Boolean {
         if (hasSyncedFromProvider) return cachedT9Shuangpin
         return remotePrefs?.getBoolean(KEY_T9_SHUANGPIN, false) ?: cachedT9Shuangpin
+    }
+
+    fun isEmojiCandidatesEnabled(): Boolean {
+        if (hasSyncedFromProvider) return cachedEmojiCandidates
+        return remotePrefs?.getBoolean(KEY_EMOJI_CANDIDATES, false) ?: cachedEmojiCandidates
     }
 
     fun getT9ShuangpinScheme(): String {

@@ -17,6 +17,9 @@ group("keyboard.layout", "ka.c ka.f ka.e ka.g ab.p1 z8.g la.a ab.b1 ab.f1",
       {"ka.c": "a b c d e f g h i j k l m n o p q r", "ka.e": "a b c", "ka.g": "a b c d e f g h i"})
 group("keyboard.actions", "ab.b1 z8.q",
       {"ab.b1": "n d f M b K u F J", "z8.q": "clear"})
+
+group("keyboard.emoji", "z8.g z8.q z8.p z8.r z8.u z8.b z8.t z8.a z8.s z8.e y8.b nc.f ab.x0",
+      {"z8.q": "a b clear d destroy e f g i j k o q s t u", "z8.p": "c h l m n p r v", "ab.x0": "b"})
 group("keyboard.picker", "z9.g6 bd.b s0.p z9.u7 oc.m gb.u0 z9.c3",
       {"bd.b": "g", "z9.u7": "a0", "oc.m": "T0", "z9.c3": "m"}, {"z9.g6": "a c"})
 group("keyboard.settings", "db.l dg.u androidx.preference.Preference miuix.preference.SingleChoicePreference androidx.preference.PreferenceGroup qh.c bd.b z8.g com.mi.ime.MiInputMethodService",
